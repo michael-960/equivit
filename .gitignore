@@ -1,0 +1,12 @@
+*.pyc
+*.pyo
+*.pyd
+
+
+dist/
+
+src/equivit.egg-info/
+build/
+
+__pycache__/
+
