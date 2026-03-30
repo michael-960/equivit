@@ -1,7 +1,7 @@
 import numpy as np
 
 
-def find_irrep_component(
+def find_irrep_components(
     rep, irrep, group, 
     clip_small_values=0.
 ):
@@ -12,12 +12,14 @@ def find_irrep_component(
 
     clip_small_values: small output entries (due to numerical error) will be set to zero
 
+    Return: an array of shape (multiplicity, irrep_dim, rep_dim)
+
     warning: only works when both rep and irrep are orthogonal
     """
 
     # if rep is a dict, lambdify it
     if type(rep) is dict:
-        return find_irrep_component(
+        return find_irrep_components(
             lambda g: rep[g],
             irrep, group,
             clip_small_values=clip_small_values
@@ -50,3 +52,55 @@ def find_irrep_component(
     res = np.where(np.abs(res) < clip_small_values, 0., res)
 
     return res
+
+
+def restrict_action(action_dict, indices):
+    """
+    Given a group action on a set, return the restricted action on a subset of the set.
+    
+    Return: a dictionary mapping group elements to the restricted action on the subset. 
+    Each value of the dictionary is an array of shape (m,), where m is the size of the subset.
+    """
+
+    if type(indices) is not list:
+        indices = list(indices)
+        
+    assert len(indices) == len(set(indices)), "repeated indices are not allowed"
+
+    restricted_action_dict = dict()
+    raw_index_to_new_index = {ind: i for i, ind in enumerate(indices)}
+
+    try:
+        for g in action_dict.keys():
+            restricted_action_dict[g] = np.array(
+                [raw_index_to_new_index[action_dict[g][i]] for i in indices]
+            )
+    except KeyError:
+        raise ValueError("the subset is not invariant under the group action")
+
+    return restricted_action_dict
+
+
+
+def get_set_action_rep_matrices(action_dict, indices=None):
+    """
+    Given a group action on a set, return the representation matrices of the corresponding representation on the vector space spanned by the set elements.
+    
+    Return: a dictionary mapping group elements to representation matrices. 
+    Each value of the dictionary is a permutation matrix of shape (n, n), where n is the size of the set.
+    """
+
+    if indices is not None:
+        restricted_action_dict = restrict_action(action_dict, indices)
+        return get_set_action_rep_matrices(restricted_action_dict, indices=None)
+       
+    rep_matrices = dict()
+    n = len(action_dict[next(iter(action_dict.keys()))])
+
+    all_inds = [i for i in range(n)]
+
+    for g in action_dict.keys():
+        rep_matrices[g] = np.zeros((n, n), dtype=np.float64)
+        rep_matrices[g][action_dict[g], all_inds] = 1.
+
+    return rep_matrices

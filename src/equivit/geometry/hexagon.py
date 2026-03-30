@@ -3,6 +3,11 @@ import torch
 import matplotlib.pyplot as plt
 from matplotlib.collections import PolyCollection
 
+from .groups import D6Irreps
+
+from .groups import D6, get_set_action_rep_matrices, find_irrep_components
+from typing import Union, cast, TYPE_CHECKING
+
 
 # TODO remove HexGrid, rename AbstractHexagonGrid -> HexagonGrid
 
@@ -30,24 +35,22 @@ class Hexagon:
         """
         N: number of lattice sites on a single side of the hexagon
         """
-        self.N = N # side length of hexagon
 
-        self.index_enc = {
-            1: dict(), 
-            2: dict(), 
-            3: dict(), 
-        }
+        # side length of hexagon
+        self.N = N
 
-        self.index_dec = {
-            1: dict(),
-            2: dict(),
-            3: dict(),
-        }
+        self._setup_indices()
+        self._setup_group_action()
+
+    def _setup_indices(self):
+        # dictionaries for index conversion
+        self.index_enc = {1: dict(), 2: dict(), 3: dict()}
+        self.index_dec = {1: dict(), 2: dict(), 3: dict()}
 
         _q = 0
-        for i in range(-N, N+1):
-            for j in range(-N, N+1):
-                if -N-1< i + j < N+1:
+        for i in range(-self.N, self.N+1):
+            for j in range(-self.N, self.N+1):
+                if -self.N-1< i + j < self.N+1:
                     self.index_enc[2][i, j] = _q
                     self.index_dec[2][_q] = (i, j)
 
@@ -58,47 +61,48 @@ class Hexagon:
         # number of lattice points
         self.L = _q
 
-        for a in range(-N,N+1):
-            for b in range(-N,N+1):
-                for c in range(-N,N+1):
+        for a in range(-self.N,self.N+1):
+            for b in range(-self.N,self.N+1):
+                for c in range(-self.N,self.N+1):
                     i, j = a-b, b-c
-                    if -N <= i + j <= N and -N <= i <= N and -N <= j <= N:
-                        q = self.index_dec[2][i,j]
+                    if -self.N <= i + j <= self.N and -self.N <= i <= self.N and -self.N <= j <= self.N:
+                        q = self.index_enc[2][i,j]
                         self.index_enc[3][a,b,c] = q
                         self.index_dec[3][q] = (a,b,c)
 
-    def d6_action_index_dict(self, g: str) -> dict:
-        """
-        Return the map of indices corresponding to the action of g on the lattice
-        
-        :param g: group element of D6
-        :type g: str
-        """
-        assert g in ['r', 'rr', 'rrr', 'rrrr', 'rrrrr', 't']
-        _res = dict()
-        for q in range(self.L):
-            a,b,c = self.index_dec[3][q]
-            if g == 'r': q_new = self.index_enc[3][-b,-c,-a]
-            if g == 'rr': q_new = self.index_enc[3][c,a,b]
-            if g == 'rrr': q_new = self.index_enc[3][-a,-b,-c]
-            if g == 'rrrr': q_new = self.index_enc[3][b,c,a]
-            if g == 'rrrrr': q_new = self.index_enc[3][-c,-a,-b]
-            if g == 't': q_new = self.index_enc[3][-a,-c,-b]
-            _res[q] = q_new
-        return _res
+    def _setup_group_action(self):
+        self.action_dict = {}
 
-    def d6_action(self, g: str, x: torch.Tensor):
+        for g in D6:
+            _dict = []
+            for q in range(self.L):
+                a,b,c = self.index_dec[3][q]
+                for x in g.word[::-1]:
+                    if x == 'r':
+                        a,b,c = -b,-c,-a
+                    elif x == 't':
+                        a,b,c = -a,-c,-b
+                    else:
+                        raise ValueError(f'Invalid D6 generator: {x}')
+                q_new = self.index_enc[3][a,b,c]
+                _dict.append(q_new)
+            self.action_dict[g] = np.array(_dict, dtype=np.int64)
+
+    def d6_action(self, g: Union[D6,str], x: torch.Tensor):
         """
         :param g: group element of D6
         :type g: str
         :param x: tensor of shape (..., L)
         :type x: torch.Tensor
         """
-        y = torch.zeros(x.shape, dtype=x.dtype, device=x.device)
-        ind_dict = self.d6_action_index_dict(g)
-        for q in range(self.L):
-            qnew = ind_dict[q]
-            y[...,q] = x[...,qnew]
+        if type(g) is str:
+            if g == 'e': g = D6.e
+            else:
+                g = D6.from_word(g)
+
+        ind_dict = self.action_dict[g.inv()]
+        y = x[...,ind_dict]
+
         return y
 
     def points(self):
@@ -113,30 +117,40 @@ class Hexagon:
                     E)
         return points
 
-
     def compute_irrep_projections(self):
         """
         The group D6 has 6 irreps:
         - A1, A2, B1, B2 (1-dimensional)
         - E1, E2 (2-dimensional)
         """
-        
         _dots = set(range(self.L))
-        self.orbits = []
+        orbits = []
         while len(_dots) > 0:
             dot = next(iter(_dots))
-            a,b,c = self.index_dec[3][dot]
-
-            orbit = set([self.index_enc[3][P] for P in [
-                                    (a,b,c), (a,c,b), (b,a,c), (b,c,a), (c,a,b), (c,b,a),
-                            ]
-                        ]
-                       )
-
-            self.orbits.append(list(orbit))
+            orbit = []
+            for g in D6:
+                i = self.action_dict[g][dot]
+                if i not in orbit: orbit.append(i)
+            orbits.append(orbit)
             _dots = _dots.difference(orbit)
 
-        pass
+        self.irrep_projections = {irrep: [] for irrep in D6Irreps}
+        for orbit in orbits:
+            _rep_matrices = get_set_action_rep_matrices(self.action_dict, orbit)
+            for irrep in D6Irreps:
+                projections = torch.tensor(find_irrep_components(_rep_matrices, irrep, D6, clip_small_values=1e-11))
+
+                for i in range(projections.shape[0]):
+                    self.irrep_projections[irrep].append(
+                        torch.sparse_coo_tensor(
+                            indices=torch.tensor(orbit).unsqueeze(0),
+                            values=projections[i].T,
+                            size=(self.L, irrep.dim)
+                        )
+                    )
+
+
+
 
 
 
@@ -192,6 +206,7 @@ class HexGrid:
     def crop_and_interpolate(self, img: torch.Tensor):    
         """
         Crop and convert a square image into a hexagonal image.
+        Interpolation is bilinear.
         Ideally, img should have spatial size (2N,2N)
 
         img: (*, C, 2N, 2N)
