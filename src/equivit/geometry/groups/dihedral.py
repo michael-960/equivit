@@ -2,8 +2,7 @@ from enum import Enum
 import typing
 import numpy as np
 
-class Group(Enum):
-    pass
+from .base import Group, GroupIrreps
 
 
 class Dihedral(Group):
@@ -74,13 +73,7 @@ class Dihedral(Group):
 
         n = self.__class__.get_n()
         return self.__class__.from_word('r'*(n-len(self.word)))
-        
-
-
-    @classmethod
-    def conjugacy_classes(cls):
-        raise NotImplementedError("This method should be implemented by subclasses to return the conjugacy classes of the group.")
-
+    
     @classmethod
     def word_element_lookup(cls):
         raise NotImplementedError("This method should be implemented by subclasses to return a dictionary mapping reduced words to group elements.")
@@ -89,6 +82,42 @@ class Dihedral(Group):
     def get_n(cls):
         raise NotImplementedError("This method should be implemented by subclasses to return the order of the rotation element r.")
 
+    @classmethod
+    def identity(cls):
+        return cls.from_word('')
+
+
+_d2_elements = dict()
+
+class D2(Dihedral):
+    """
+    D2 is isomorphic to the Klein four-group and C2 x C2.
+    """
+    e = ''
+    r = 'r'
+    t = 't'
+    tr = 'tr'
+
+    @classmethod
+    def conjugacy_classes(cls):
+        return [
+            [cls.e],
+            [cls.r],
+            [cls.t],
+            [cls.tr],
+        ]
+
+    @classmethod
+    def get_n(cls):
+        return 2
+
+    @classmethod
+    def word_element_lookup(cls):
+        return _d2_elements
+
+    @classmethod
+    def irreps(cls):
+        return D2Irreps
 
 
 _d3_elements = dict()
@@ -117,6 +146,9 @@ class D3(Dihedral):
     def word_element_lookup(cls):
         return _d3_elements
 
+    @classmethod
+    def irreps(cls):
+        return D3Irreps
 
 
 _d4_elements = dict()
@@ -148,6 +180,10 @@ class D4(Dihedral):
     @classmethod
     def word_element_lookup(cls):
         return _d4_elements
+    
+    @classmethod
+    def irreps(cls):
+        return D4Irreps
 
 
 
@@ -188,6 +224,10 @@ class D6(Dihedral):
     @classmethod
     def word_element_lookup(cls):
         return _d6_elements
+    
+    @classmethod
+    def irreps(cls):
+        return D6Irreps
 
 
 def rotation_matrix(theta):
@@ -197,7 +237,7 @@ def rotation_matrix(theta):
     ])
 
 
-class DihedralIrreps(Enum):
+class DihedralIrreps(GroupIrreps):
     def __init__(
         self, name: str,
         r_matrix, t_matrix
@@ -220,15 +260,6 @@ class DihedralIrreps(Enum):
                 mat = t_matrix @ mat
             self._rep_matrices[g] = mat
 
-    def character(self, g):
-        return self(g).trace()
-
-    def characters(self):
-        return np.array([self.character(cc[0]) for cc in self.__class__.group_class().conjugacy_classes()])
-
-    def all_characters(self):
-        return np.array([self.character(g) for g in self.__class__.group_class()])
-
     def __call__(self, g):
         assert type(g) is self.__class__.group_class(), str(g) + ' is not an element of ' + str(self.__class__.group_class())
         return self._rep_matrices[g]
@@ -236,6 +267,22 @@ class DihedralIrreps(Enum):
     @classmethod
     def group_class(cls):
         raise NotImplementedError
+
+    def __repr__(self):
+        return f'{self.__class__.__name__}.{self.irrep_name}'    
+
+
+
+class D2Irreps(DihedralIrreps):
+    A = 'A', [[1]], [[1]]
+    B1 = 'B1', [[1]], [[-1]]
+    B2 = 'B2', [[-1]], [[-1]]
+    B3 = 'B3', [[-1]], [[1]]
+
+    @classmethod
+    def group_class(cls):
+        return D2
+
 
 class D4Irreps(DihedralIrreps):
     A1 = 'A1', [[1]], [[1]]

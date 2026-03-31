@@ -1,4 +1,8 @@
 import numpy as np
+import torch
+from typing import Type
+
+from .base import Group
 
 
 def find_irrep_components(
@@ -104,3 +108,44 @@ def get_set_action_rep_matrices(action_dict, indices=None):
         rep_matrices[g][action_dict[g], all_inds] = 1.
 
     return rep_matrices
+
+
+
+def decompose_set_action(action_dict, group: Type[Group]):
+    """
+    Given a group action on a set, decompose the corresponding representation on
+    the vector space spanned by the set elements into irreps. 
+
+    irreps: the Enum type containing the irreps of the group
+    """
+    L = len(action_dict[next(iter(action_dict.keys()))])
+
+    irreps = group.irreps()
+
+    _dots = set(range(L))
+    orbits = []
+    while len(_dots) > 0:
+        dot = next(iter(_dots))
+        orbit = []
+        for g in group:
+            i = action_dict[g][dot]
+            if i not in orbit: orbit.append(i)
+        orbits.append(orbit)
+        _dots = _dots.difference(orbit)
+
+    irrep_projections = {irrep: [] for irrep in irreps}
+    for orbit in orbits:
+        _rep_matrices = get_set_action_rep_matrices(action_dict, orbit)
+        for irrep in irreps:
+            projections = torch.tensor(find_irrep_components(_rep_matrices, irrep, group, clip_small_values=1e-11))
+
+            for i in range(projections.shape[0]):
+                irrep_projections[irrep].append(
+                    torch.sparse_coo_tensor(
+                        indices=torch.tensor(orbit).unsqueeze(0),
+                        values=projections[i].T,
+                        size=(L, irrep.dim)
+                    )
+                )
+    return irrep_projections
+
