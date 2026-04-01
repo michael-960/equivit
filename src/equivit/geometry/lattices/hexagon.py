@@ -42,8 +42,8 @@ class Hexagon(Lattice):
         assert orientation in ['x', 'y'], f"Invalid hexagon orientation: {orientation}"
         self.orientation = orientation
 
-        if orientation == 'y':
-            raise NotImplementedError("y-oriented hexagons not implemented yet")
+        # if orientation == 'y':
+        #     raise NotImplementedError("y-oriented hexagons not implemented yet")
 
         self._setup_indices()
         self._setup_group_action()
@@ -95,8 +95,12 @@ class Hexagon(Lattice):
 
     @property
     def points(self):
-        e1 = np.array([1.,0])
-        e2 = np.array([1.,np.sqrt(3)])/2
+        if self.orientation == 'x':
+            e1 = np.array([1.,0])
+            e2 = np.array([1.,np.sqrt(3)])/2
+        else:
+            e1 = np.array([np.sqrt(3),1.])/2
+            e2 = np.array([0,1.])
         return self.get_points_from_basis([e1, e2])
 
     def get_pixel_polygons(self, radius_eps=None):
