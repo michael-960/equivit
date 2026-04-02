@@ -2,7 +2,7 @@ import numpy as np
 import torch
 from matplotlib.collections import PolyCollection
 
-from ..groups import D6, decompose_set_action
+from ..groups import D6, decompose_set_action, dihedral_group_action
 from typing import Union, cast, TYPE_CHECKING
 
 from .base import Lattice, LatticeImageInterpolator
@@ -42,8 +42,6 @@ class Hexagon(Lattice):
         assert orientation in ['x', 'y'], f"Invalid hexagon orientation: {orientation}"
         self.orientation = orientation
 
-        # if orientation == 'y':
-        #     raise NotImplementedError("y-oriented hexagons not implemented yet")
 
         self._setup_indices()
         self._setup_group_action()
@@ -77,21 +75,33 @@ class Hexagon(Lattice):
                         self.index_dec[3][q] = (a,b,c)
 
     def _setup_group_action(self):
-        self.action_dict = {}
-        for g in D6:
-            _dict = []
-            for q in range(self.L):
-                a,b,c = self.index_dec[3][q]
-                for x in g.word[::-1]:
-                    if x == 'r':
-                        a,b,c = -b,-c,-a
-                    elif x == 't':
-                        a,b,c = -a,-c,-b
-                    else:
-                        raise ValueError(f'Invalid D6 generator: {x}')
-                q_new = self.index_enc[3][a,b,c]
-                _dict.append(q_new)
-            self.action_dict[g] = np.array(_dict, dtype=np.int64)
+        r_action = []
+        t_action = []
+        for q in range(self.L):
+            a, b, c = self.index_dec[3][q]
+            r_action.append(self.index_enc[3][-b,-c,-a])
+            t_action.append(self.index_enc[3][-a,-c,-b])
+            
+        act = dihedral_group_action(D6, r_action=r_action, t_action=t_action)
+        self.action = act
+
+        # self.action_dict = {}
+
+        # for g in D6:
+        #     _dict = []
+        #     for q in range(self.L):
+        #         a,b,c = self.index_dec[3][q]
+        #         word = g.value[0] * 't' + g.value[1] * 'r'
+        #         for x in word[::-1]:
+        #             if x == 'r':
+        #                 a,b,c = -b,-c,-a
+        #             elif x == 't':
+        #                 a,b,c = -a,-c,-b
+        #             else:
+        #                 raise ValueError(f'Invalid D6 generator: {x}')
+        #         q_new = self.index_enc[3][a,b,c]
+        #         _dict.append(q_new)
+        #     self.action_dict[g] = np.array(_dict, dtype=np.int64)
 
     @property
     def points(self):

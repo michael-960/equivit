@@ -1,7 +1,7 @@
 import numpy as np
 import torch
 
-from ..groups import D3, decompose_set_action
+from ..groups import D3, dihedral_group_action
 
 from typing import Union, cast, TYPE_CHECKING
 
@@ -62,21 +62,30 @@ class Triangle(Lattice):
         self.verts_3d = np.array(verts_3d)
 
     def _setup_group_action(self):
-        self.action_dict = {}
-        for g in D3:
-            _dict = []
-            for q in range(self.L):
-                a,b,c = self.index_dec[3][q]
-                for x in g.word[::-1]:
-                    if x == 'r':
-                        a,b,c = c,a,b
-                    elif x == 't':
-                        a,b,c = a,c,b
-                    else:
-                        raise ValueError(f'Invalid D3 generator: {x}')
-                q_new = self.index_enc[3][a,b,c]
-                _dict.append(q_new)
-            self.action_dict[g] = np.array(_dict, dtype=np.int64)
+        r_action = []
+        t_action = []
+        for q in range(self.L):
+            a, b, c = self.index_dec[3][q]
+            r_action.append(self.index_enc[3][c,a,b])
+            t_action.append(self.index_enc[3][a,c,b])
+            
+        self.action = dihedral_group_action(D3, r_action=r_action, t_action=t_action)
+
+        # self.action_dict = {}
+        # for g in D3:
+        #     _dict = []
+        #     for q in range(self.L):
+        #         a,b,c = self.index_dec[3][q]
+        #         for x in g.word[::-1]:
+        #             if x == 'r':
+        #                 a,b,c = c,a,b
+        #             elif x == 't':
+        #                 a,b,c = a,c,b
+        #             else:
+        #                 raise ValueError(f'Invalid D3 generator: {x}')
+        #         q_new = self.index_enc[3][a,b,c]
+        #         _dict.append(q_new)
+        #    self.action_dict[g] = np.array(_dict, dtype=np.int64)
 
     @property
     def points(self):

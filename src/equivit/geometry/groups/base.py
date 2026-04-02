@@ -1,7 +1,7 @@
 from __future__ import annotations
 from enum import Enum
 import numpy as np
-from typing import Generic, TypeVar, Type, Tuple, Dict, Any
+from typing import Generic, TypeVar, Type, Tuple, Dict, Any, Literal, List, Optional
 
 
 
@@ -21,8 +21,16 @@ class Group:
         # return self.from_value(key)
         raise KeyError(f"Key {key} not found in group element lookup.")
 
+    def __len__(self) -> int:
+        raise ValueError("This method should be implemented by subclasses to return the number of elements in the group.")
 
-    def order(self):
+    def __contains__(self, g):
+        if not (type(g) is GroupElement): return False
+
+        return g.group is self
+
+
+    def order(self) -> int:
         return len(self)
 
     def multiply(self, g: Any, h: Any):
@@ -34,17 +42,17 @@ class Group:
     def from_value(self, value: Any) -> GroupElement:
         raise NotImplementedError("This method should be implemented by subclasses to construct a group element from a value.")
 
-    def irreps(cls) -> Type[GroupIrreps]:
+    def real_irreps(self):
         raise NotImplementedError("This method should be implemented by subclasses to return the class that contains the irreducible representations of the group.")
         
-    def conjugacy_classes(cls):
+    def conjugacy_classes(self):
         raise NotImplementedError("This method should be implemented by subclasses to return the conjugacy classes of the group.")
 
-    def identity(cls) -> GroupElement:
+    def identity(self) -> GroupElement:
         """Returns the identity element of the group."""
         raise NotImplementedError("This method should be implemented by subclasses to return the identity element of the group.")
 
-    def subgroup(cls, name: str) -> Tuple[Group, Dict[Group, Group]]:
+    def subgroup(self, name: str) -> Tuple[Group, Dict[GroupElement, GroupElement]]:
         """Returns a subgroup of the group given a name together with the inclusion map."""
         raise NotImplementedError("This method should be implemented by subclasses to return a subgroup of the group given its name.")
 
@@ -76,65 +84,3 @@ class GroupElement:
 
 
 
-# class GroupIrreps(Enum):
-#     dim: int
-#     def character(self, g):
-#         return self(g).trace()
-
-#     def characters(self):
-#         """
-#         Returns an array of characters, one for each conjugacy class of the group. 
-#         """
-#         return np.array([self.character(cc[0]) for cc in self.__class__.group_class().conjugacy_classes()])
-
-#     def all_characters(self):
-#         """
-#         Returns an array of characters, one for each group element.
-#         """
-#         return np.array([self.character(g) for g in self.__class__.group_class()])
-
-#     def __call__(self, g):
-#         raise NotImplementedError("This method should be implemented by subclasses to return the representation matrix of the group element g in this irrep.")
-
-#     @classmethod
-#     def group_class(cls) -> Type[Group]:
-#         raise NotImplementedError
-
-
-
-class GroupRepresentation:
-    group: Group
-
-    def __call__(self, g: GroupElement):
-        raise NotImplementedError("This method should be implemented by subclasses to return the representation matrix of the group element g in this representation.")
-
-    def character(self, g: GroupElement):
-        return self(g).trace()
-
-    def all_characters(self):
-        """
-        Returns an array of characters, one for each group element.
-        """
-        return np.array([self.character(g) for g in self.group])
-
-    def characters(self):
-        """
-        Returns an array of characters, one for each conjugacy class of the group. 
-        """
-        return np.array([self.character(cc[0]) for cc in self.group.conjugacy_classes()])
-
-    def frobenius_schur_indicator(self):
-        """
-        Returns the Frobenius-Schur indicator of this representation. 
-            - 1 if the representation is real
-            - 0 if the representation is complex
-            - -1 if the representation is quaternionic
-        """
-        return np.mean([self.character(g*g) for g in self.group])
-
-
-def rotation_matrix(theta):
-    return np.array([
-        [np.cos(theta), -np.sin(theta)],
-        [np.sin(theta), np.cos(theta)],
-    ])

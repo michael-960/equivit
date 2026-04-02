@@ -1,8 +1,9 @@
 from enum import Enum
-from typing import Tuple
+from typing import Tuple, Optional, List
 import numpy as np
 
-from .base import Group, GroupElement, GroupRepresentation, rotation_matrix
+from .base import Group, GroupElement
+from .action import GroupRepresentation, rotation_matrix, ComplexStructure, GroupAction
 
 
 
@@ -138,24 +139,25 @@ class DihedralGroup(Group):
             return self._real_irreps
 
         irreps = dict()
-        irreps['A1'] = DihedralRepresentation(self, [[1]], [[1]])
-        irreps['A2'] = DihedralRepresentation(self, [[1]], [[-1]])
+        irreps['A1'] = dihedral_group_representation(self, [[1]], [[1]])
+        irreps['A2'] = dihedral_group_representation(self, [[1]], [[-1]])
 
         if self.n % 2 == 0:
-            irreps['B1'] = DihedralRepresentation(self, [[-1]], [[1]])
-            irreps['B2'] = DihedralRepresentation(self, [[-1]], [[-1]])
+            irreps['B1'] = dihedral_group_representation(self, [[-1]], [[1]])
+            irreps['B2'] = dihedral_group_representation(self, [[-1]], [[-1]])
             for k in range(1, self.n//2):
                 theta = 2 * np.pi * k / self.n
-                irreps[f'E{k}'] = DihedralRepresentation(self, rotation_matrix(theta), [[1,0], [0,-1]])
+                irreps[f'E{k}'] = dihedral_group_representation(self, rotation_matrix(theta), [[1,0], [0,-1]])
         else:
             for k in range(1, (self.n+1)//2):
                 theta = 2 * np.pi * k / self.n
-                irreps[f'E{k}'] = DihedralRepresentation(self, rotation_matrix(theta), [[1,0], [0,-1]])
+                irreps[f'E{k}'] = dihedral_group_representation(self, rotation_matrix(theta), [[1,0], [0,-1]])
 
         self._real_irreps = irreps
         return self._real_irreps
 
-
+    def __repr__(self):
+        return f'{self.__class__.__name__}({self.n})'
 
 
 
@@ -169,107 +171,41 @@ D8 = DihedralGroup(8)
 
 D12 = DihedralGroup(12)
 
-class DihedralRepresentation(GroupRepresentation):
-    def __init__(self, group: DihedralGroup, r_matrix, t_matrix):
-        self.group = group
-        self.setup_matrices(np.array(r_matrix, dtype=np.float64), np.array(t_matrix, dtype=np.float64))
+def dihedral_group_action(
+        group: DihedralGroup, 
+        r_action: List[int],
+        t_action: List[int],
+) -> GroupAction:
+    action_dict = dict()
+    r_action_ = np.array(r_action)
+    t_action_ = np.array(t_action)
 
-    def setup_matrices(self, r_matrix, t_matrix):
-        self.dim = r_matrix.shape[0]
-        self._rep_matrices = dict()
-        for g in self.group:
-            num_r = g.value[1]
+    for g in group:
+        num_t, num_r = g.value
 
-            mat = np.linalg.matrix_power(r_matrix, num_r)
-            if g.value[0] == 1:
-                mat = t_matrix @ mat
-            self._rep_matrices[g.value] = mat
+        q = np.arange(len(r_action))
+        for _ in range(num_r):
+            q = r_action_[q]
 
-    def __call__(self, g: GroupElement):
-        return self._rep_matrices[g.value]
+        if num_t == 1:
+            q = t_action_[q]
+        
+        action_dict[g] = q.tolist()
 
-
-
-
-# class DihedralIrreps(GroupIrreps):
-#     def __init__(
-#         self, name: str,
-#         r_matrix, t_matrix
-#     ):
-#         """
-#         r_matrix: image of r 
-#         t_matrix: image of t 
-#         """
-#         self.irrep_name = name
-#         self.setup_matrices(np.array(r_matrix, dtype=np.float64), np.array(t_matrix, dtype=np.float64))
-
-#     def setup_matrices(self, r_matrix, t_matrix):
-#         self.dim = r_matrix.shape[0]
-#         self._rep_matrices = dict()
-#         for g in self.__class__.group_class():
-#             num_r = g.word.count('r')
-
-#             mat = np.linalg.matrix_power(r_matrix, num_r)
-#             if 't' in g.word:
-#                 mat = t_matrix @ mat
-#             self._rep_matrices[g] = mat
-
-#     def __call__(self, g):
-#         assert type(g) is self.__class__.group_class(), str(g) + ' is not an element of ' + str(self.__class__.group_class())
-#         return self._rep_matrices[g]
-
-#     @classmethod
-#     def group_class(cls):
-#         raise NotImplementedError
-
-#     def __repr__(self):
-#         return f'{self.__class__.__name__}.{self.irrep_name}'    
+    return GroupAction(group, action_dict)
 
 
+def dihedral_group_representation(
+        group: DihedralGroup, 
+        r_matrix: np.ndarray, t_matrix: np.ndarray,
+        complex_structure: Optional[ComplexStructure]=None
+):
+    rep_matrices = dict()
+    for g in group:
+        num_r = g.value[1]
+        mat = np.linalg.matrix_power(r_matrix, num_r)
+        if g.value[0] == 1:
+            mat = t_matrix @ mat
+        rep_matrices[g] = mat
 
-# class D2Irreps(DihedralIrreps):
-#     A = 'A', [[1]], [[1]]
-#     B1 = 'B1', [[1]], [[-1]]
-#     B2 = 'B2', [[-1]], [[-1]]
-#     B3 = 'B3', [[-1]], [[1]]
-
-#     @classmethod
-#     def group_class(cls):
-#         return D2
-
-
-# class D4Irreps(DihedralIrreps):
-#     A1 = 'A1', [[1]], [[1]]
-#     A2 = 'A2', [[1]], [[-1]]
-#     B1 = 'B1', [[-1]], [[1]]
-#     B2 = 'B2', [[-1]], [[-1]]
-#     E = 'E', [[0,-1],[1,0]], [[1, 0], [0, -1]]
-#     @classmethod
-#     def group_class(cls):
-#         return D4
-
-
-# class D3Irreps(DihedralIrreps):
-#     A1 = 'A1', [[1]], [[1]]
-#     A2 = 'A2', [[1]], [[-1]]
-#     E = 'E', rotation_matrix(np.pi*2/3), [[1,0], [0,-1]]
-
-#     @classmethod
-#     def group_class(cls):
-#         return D3
-
-
-# class D6Irreps(DihedralIrreps):
-#     A1 = 'A1', [[1]], [[1]]
-#     A2 = 'A2', [[1]], [[-1]]
-#     B1 = 'B1', [[-1]], [[1]]
-#     B2 = 'B2', [[-1]], [[-1]]
-#     E1 = 'E1', rotation_matrix(np.pi/3), [[1,0], [0,-1]]
-#     E2 = 'E2', rotation_matrix(np.pi*2/3), [[1,0], [0,-1]]
-
-#     @classmethod
-#     def group_class(cls):
-#         return D6
-
-
-
+    return GroupRepresentation(group, rep_matrices, complex_structure=complex_structure)

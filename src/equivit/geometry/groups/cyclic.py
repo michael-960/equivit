@@ -1,5 +1,8 @@
 import numpy as np
-from .base import Group, GroupElement, rotation_matrix, GroupRepresentation
+from .base import Group, GroupElement
+from .action import rotation_matrix, GroupRepresentation, StandardComplexStructure, ComplexStructure, GroupAction
+from typing import Optional, List
+
 
 class CyclicGroup(Group):
     """
@@ -25,10 +28,10 @@ class CyclicGroup(Group):
     def __len__(self):
         return self.n
 
-    def multiply(self, g: int, h: int) -> int:
+    def multiply(self, g: int, h: int) -> GroupElement:
         return self.from_value((g + h) % self.n)
 
-    def inverse(self, g: int) -> int:
+    def inverse(self, g: int) -> GroupElement:
         if type(g) is GroupElement:
             g = g.value
         return self.from_value((-g) % self.n)
@@ -68,18 +71,34 @@ class CyclicGroup(Group):
 
         irreps = dict()
 
-        irreps['A'] = CyclicGroupRepresentation(self, [[1]])
+        irreps['A'] = cyclic_group_representation(self, [[1]])
 
         if self.n % 2 == 0:
-            irreps['B'] = CyclicGroupRepresentation(self, [[-1]])
-
+            irreps['B'] = cyclic_group_representation(self, [[-1]])
 
         for k in range(1, (self.n+1)//2):
             theta = 2 * np.pi * k / self.n
-            irreps[f'E{k}'] = CyclicGroupRepresentation(self, rotation_matrix(theta))
+            irreps[f'E{k}'] = cyclic_group_representation(
+                self, rotation_matrix(theta), complex_structure=StandardComplexStructure(1))
 
         self._real_irreps = irreps
         return self._real_irreps
+
+    def complex_irreps(self):
+        """
+        Returns the complex irreducible representations of the cyclic group.
+        For cyclic groups, all complex irreps are 1-dimensional and are given by the characters.
+        """
+        irreps = dict()
+
+        for k in range(self.n):
+            theta = 2 * np.pi * k / self.n
+            irreps[f'{k}'] = cyclic_group_representation(self, [[np.exp(1j * theta)]])
+
+        return irreps
+    
+    def __repr__(self):
+        return f'{self.__class__.__name__}({self.n})'
 
 
 
@@ -95,20 +114,33 @@ C8 = CyclicGroup(8)
 C12 = CyclicGroup(12)
 
 
-class CyclicGroupRepresentation(GroupRepresentation):
-    def __init__(self, group: CyclicGroup, r_matrix):
-        self.group = group
-        self.setup_matrices(np.array(r_matrix, dtype=np.float64))
+def cyclic_group_action(
+        group: CyclicGroup, 
+        r_action: List[int]
+) -> GroupAction:
+    action_dict = dict()
+    r_action_ = np.array(r_action)
+    for g in group:
+        q = np.arange(len(r_action))
+        for _ in range(g.value):
+            q = r_action_[q]
+        action_dict[g] = q.tolist()
+        
+    return GroupAction(group, action_dict)
 
-    def setup_matrices(self, r_matrix):
-        self.dim = r_matrix.shape[0]
-        self._rep_matrices = dict()
-        for g in self.group:
-            num_r = g.value
-            mat = np.linalg.matrix_power(r_matrix, num_r)
 
-            self._rep_matrices[g.value] = mat
+def cyclic_group_representation(
+        group: CyclicGroup, r_matrix: np.ndarray, 
+        complex_structure: Optional[ComplexStructure]=None
+) -> GroupRepresentation:
+    """
+    A representation of Cn is specified by the image of the generator r.
+    """
+    rep_matrices = dict()
+    for g in group:
+        num_r = g.value
+        mat = np.linalg.matrix_power(r_matrix, num_r)
+        rep_matrices[g] = mat
 
-    def __call__(self, g: GroupElement):
-        return self._rep_matrices[g.value]
+    return GroupRepresentation(group, rep_matrices, complex_structure=complex_structure)
 

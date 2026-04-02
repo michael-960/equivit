@@ -1,6 +1,6 @@
 import torch
-from typing import Type, Union, ClassVar
-from ..groups import Group, decompose_set_action, TRIVIAL_GROUP
+from typing import Type, Union, ClassVar, Any
+from ..groups import Group, decompose_set_action, TRIVIAL_GROUP, GroupAction, GroupElement
 import numpy as np
 
 import matplotlib.pyplot as plt
@@ -17,21 +17,24 @@ class Lattice:
     It might be more accurate to call this a point cloud (especially when the
     symmetry group is trivial), but we will stick with the term lattice.
     """
-    symmetry_group: ClassVar[Type[Group]] = TRIVIAL_GROUP
+    symmetry_group: Group = TRIVIAL_GROUP
 
     action_dict: dict
     index_dec: dict
     index_enc: dict
 
+    action: GroupAction
+
     def compute_irrep_projections(self):
         """
         Compute the irreducible representations of the actin of the symmetry group on the lattice.
         """
-        self.irrep_projections = decompose_set_action(
-            self.action_dict, self.__class__.symmetry_group
-        )
+        # self.irrep_projections = decompose_set_action(
+        #     self.action_dict, self.__class__.symmetry_group
+        # )
+        self.irrep_projections = decompose_set_action(self.action)
 
-    def group_action(self, g: Union[Group,str], x: torch.Tensor):
+    def group_action(self, g: Union[GroupElement,Any], x: torch.Tensor):
         """
         :param g: group element of D6
         :type g: str
@@ -39,14 +42,12 @@ class Lattice:
         :type x: torch.Tensor
         """
         group = self.__class__.symmetry_group
-        if type(g) is str:
-            if g == 'e': g = group.identity()()
-            else:
-                g = group.from_word(g)
-        else:
+        if isinstance(g, GroupElement):
             assert g in group, f"Group element {g} not in group {group.__name__}"
+        else:
+            g = group[g]
 
-        ind_dict = self.action_dict[g.inv()]
+        ind_dict = self.action(g.inv())
         y = x[...,ind_dict]
         return y
 

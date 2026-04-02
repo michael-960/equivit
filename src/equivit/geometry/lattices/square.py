@@ -1,7 +1,7 @@
 import numpy as np
 import torch
 
-from ..groups import D4, decompose_set_action
+from ..groups import D4, dihedral_group_action
 
 from typing import Union, cast, TYPE_CHECKING
 
@@ -53,21 +53,30 @@ class Square(Lattice):
                 _q += 1
 
     def _setup_group_action(self):
-        self.action_dict = {}
-        for g in D4:
-            _dict = []
-            for q in range(self.L):
-                i,j = self.index_dec[2][q]
-                for x in g.word[::-1]:
-                    if x == 'r':
-                        i, j = self.N-j, i
-                    elif x == 't':
-                        i, j = self.N-i, j
-                    else:
-                        raise ValueError(f'Invalid D4 generator: {x}')
-                q_new = self.index_enc[2][i,j]
-                _dict.append(q_new)
-            self.action_dict[g] = np.array(_dict, dtype=np.int64)
+        r_action = []
+        t_action = []
+        for q in range(self.L):
+            i,j = self.index_dec[2][q]
+            r_action.append(self.index_enc[2][self.N-j,i])
+            t_action.append(self.index_enc[2][self.N-i,j])
+            
+        self.action = dihedral_group_action(D4, r_action=r_action, t_action=t_action)
+
+        # self.action_dict = {}
+        # for g in D4:
+        #     _dict = []
+        #     for q in range(self.L):
+        #         i,j = self.index_dec[2][q]
+        #         for x in g.word[::-1]:
+        #             if x == 'r':
+        #                 i, j = self.N-j, i
+        #             elif x == 't':
+        #                 i, j = self.N-i, j
+        #             else:
+        #                 raise ValueError(f'Invalid D4 generator: {x}')
+        #         q_new = self.index_enc[2][i,j]
+        #         _dict.append(q_new)
+        #     self.action_dict[g] = np.array(_dict, dtype=np.int64)
 
     @property
     def points(self):
