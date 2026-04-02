@@ -1,6 +1,6 @@
 import torch
 from typing import Type, Union, ClassVar
-from ..groups import Group, GroupIrreps, decompose_set_action, TrivialGroup
+from ..groups import Group, decompose_set_action, TRIVIAL_GROUP
 import numpy as np
 
 import matplotlib.pyplot as plt
@@ -13,8 +13,11 @@ class Lattice:
 
     For us, a 'lattice' is a finite set of points in Euclidean space, 
     together with a group action that permutes these points.
+
+    It might be more accurate to call this a point cloud (especially when the
+    symmetry group is trivial), but we will stick with the term lattice.
     """
-    symmetry_group: ClassVar[Type[Group]] = TrivialGroup
+    symmetry_group: ClassVar[Type[Group]] = TRIVIAL_GROUP
 
     action_dict: dict
     index_dec: dict

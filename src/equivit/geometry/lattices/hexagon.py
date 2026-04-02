@@ -32,7 +32,7 @@ class Hexagon(Lattice):
 
     symmetry_group = D6
 
-    def __init__(self, N: int, orientation: str = 'x'):
+    def __init__(self, N: int, orientation: str = 'y'):
         """
         N: number of lattice sites on a single side of the hexagon minus one.
         """

@@ -30,7 +30,7 @@ def find_irrep_components(
         )
 
 
-    rep_dim = rep(group.e).shape[0]
+    rep_dim = rep(group.identity()).shape[0]
 
 
     # calculate the matrices of the representation Hom(U, V),
@@ -120,7 +120,7 @@ def decompose_set_action(action_dict, group: Type[Group]):
     """
     L = len(action_dict[next(iter(action_dict.keys()))])
 
-    irreps = group.irreps()
+    irreps = group.real_irreps()
 
     _dots = set(range(L))
     orbits = []
