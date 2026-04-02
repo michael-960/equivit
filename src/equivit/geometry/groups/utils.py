@@ -29,6 +29,18 @@ def find_irrep_components(
             clip_small_values=clip_small_values
         )
 
+    fb_ind = irrep.frobenius_schur_indicator()
+
+    if abs(fb_ind) < 1e-7:  
+        # real representation
+        pass
+    elif abs(fb_ind-1) < 1e-7:
+        # complex representation
+        pass
+    else:
+        raise ValueError(f'Frobenius-Schur indicator is {fb_ind}.')
+
+
 
     rep_dim = rep(group.identity()).shape[0]
 
