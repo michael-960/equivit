@@ -1,10 +1,10 @@
 import numpy as np
-from .base import Group, GroupElement
+from .base import Group, GroupElement, CachedGroupMeta, GroupHomomorphism
 from .action import rotation_matrix, GroupRepresentation, StandardComplexStructure, ComplexStructure, GroupAction
 from typing import Optional, List
 
 
-class CyclicGroup(Group):
+class CyclicGroup(Group, metaclass=CachedGroupMeta):
     """
     Cyclic group of order n.
     The elements of the group are represented as words in the generator r (rotation).
@@ -36,7 +36,7 @@ class CyclicGroup(Group):
             g = g.value
         return self.from_value((-g) % self.n)
     
-    def from_value(self, value):
+    def from_value(self, value) -> GroupElement:
         if value in self._value_element_dict.keys():
             return self._value_element_dict[value]
 
@@ -96,7 +96,24 @@ class CyclicGroup(Group):
             irreps[f'{k}'] = cyclic_group_representation(self, [[np.exp(1j * theta)]])
 
         return irreps
-    
+
+    def subgroup(self, m: int) -> GroupHomomorphism:
+        """
+        Returns the subgroup of Cn of order m (and index n/m).
+        """
+        assert self.n % m == 0, f"Subgroups of {self} are indexed by factors of {self.n}. {m} is not a factor of {self.n}"
+
+        k = self.n // m
+        Ck = CyclicGroup(m)
+        mapping = dict()
+        for a in range(m):
+            mapping[Ck.from_value(a)] = self.from_value(a*k % self.n)
+
+        return GroupHomomorphism(Ck, self, mapping)
+
+    def is_finite(self) -> bool:
+        return True
+
     def __repr__(self):
         return f'{self.__class__.__name__}({self.n})'
 
@@ -125,7 +142,7 @@ def cyclic_group_action(
         for _ in range(g.value):
             q = r_action_[q]
         action_dict[g] = q.tolist()
-        
+
     return GroupAction(group, action_dict)
 
 

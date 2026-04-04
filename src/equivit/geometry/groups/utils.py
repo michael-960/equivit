@@ -78,7 +78,7 @@ def find_irrep_components(
     res = eigres[1][:,invariant_indices].reshape(irrep.dim,rep_dim, -1).transpose(2,0,1)
 
     if rep_type == 'complex':
-        res = complex_structure.vector_c2r(res, axis=1)
+        res = complex_structure.dual_vector_c2r(res, axis=1)
 
     res = np.where(np.abs(res) < clip_small_values, 0., res)
     return res
@@ -87,15 +87,20 @@ def find_irrep_components(
 
 def decompose_set_action(action: GroupAction):
     """
-    Given a group action on a set, decompose the corresponding representation on
+    Given a group action on a set, decompose the corresponding linear representation on
     the vector space spanned by the set elements into irreps. 
 
-    irreps: the Enum type containing the irreps of the group
+    action: a GroupAction object
+    return: a dictionary mapping each irrep name to a list of projections, each
+        of shape (n, irrep_dim), where n is the size of the set and irrep_dim is the
+        dimension of the irrep. Each projection is a sparse matrix in COO format.
     """
     group = action.group
 
     irreps = group.real_irreps()
 
+
+    # First, compute the orbits of the group action on the set. 
     _dots = set(range(action.num_elements))
     orbits = []
     while len(_dots) > 0:
@@ -108,6 +113,10 @@ def decompose_set_action(action: GroupAction):
         _dots = _dots.difference(orbit)
 
     irrep_projections = {irrep_name: [] for irrep_name in irreps.keys()}
+
+    # The linear representation is a direct sum of the linear representations on
+    # the orbits, so we can decompose each orbit separately and combine the
+    # results.
     for orbit in orbits:
         orbit_rep = action.restrict_action(orbit).to_linear_representation()
         for irrep_name, irrep in irreps.items():
@@ -119,7 +128,7 @@ def decompose_set_action(action: GroupAction):
                         indices=torch.tensor(orbit).unsqueeze(0),
                         values=projections[i].T,
                         size=(action.num_elements, irrep.dim)
-                    )
+                    ).coalesce()
                 )
 
     return irrep_projections

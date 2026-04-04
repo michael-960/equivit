@@ -1,7 +1,7 @@
 from __future__ import annotations
 from enum import Enum
 import numpy as np
-from typing import Generic, TypeVar, Type, Tuple, Dict, Any, Literal, List, Optional
+from typing import Generic, TypeVar, Type, Tuple, Dict, Any, Literal, List, Optional, Union, Callable
 
 
 
@@ -22,13 +22,15 @@ class Group:
         raise KeyError(f"Key {key} not found in group element lookup.")
 
     def __len__(self) -> int:
-        raise ValueError("This method should be implemented by subclasses to return the number of elements in the group.")
+        raise NotImplementedError("This method should be implemented by subclasses to return the number of elements in the group.")
 
     def __contains__(self, g):
         if not (type(g) is GroupElement): return False
 
         return g.group is self
 
+    def is_finite(self) -> bool:
+        return False
 
     def order(self) -> int:
         return len(self)
@@ -46,14 +48,20 @@ class Group:
         raise NotImplementedError("This method should be implemented by subclasses to return the class that contains the irreducible representations of the group.")
         
     def conjugacy_classes(self):
+        """
+        Returns the conjugacy classes of the group.
+        """
         raise NotImplementedError("This method should be implemented by subclasses to return the conjugacy classes of the group.")
 
     def identity(self) -> GroupElement:
         """Returns the identity element of the group."""
         raise NotImplementedError("This method should be implemented by subclasses to return the identity element of the group.")
 
-    def subgroup(self, name: str) -> Tuple[Group, Dict[GroupElement, GroupElement]]:
-        """Returns a subgroup of the group given a name together with the inclusion map."""
+    def subgroup(self, *args) -> GroupHomomorphism:
+        """
+        Given some arguments specifying a subgroup, return the inclusion map as an injective group homomorphism.
+        The subgroup can be recovered as the domain (source) of the homomorphism.
+        """
         raise NotImplementedError("This method should be implemented by subclasses to return a subgroup of the group given its name.")
 
     def element_repr(self, g: GroupElement) -> str:
@@ -84,3 +92,73 @@ class GroupElement:
 
 
 
+class GroupHomomorphism:
+    def __init__(self, 
+        source: Group, target: Group, 
+        mapping: Union[Dict[GroupElement, GroupElement], Callable[[GroupElement], GroupElement]]
+    ):
+        self.source = source
+        self.target = target
+
+        if type(mapping) is dict:
+        # self._mapping = dict()
+            for k, v in mapping.items():
+                assert k.group is source
+                assert v.group is target
+                # self._mapping[k] = v
+        self._mapping = mapping
+
+    def __call__(self, g: GroupElement) -> GroupElement:
+        assert g.group is self.source
+
+        if type(self._mapping) is dict:
+            return self._mapping[g]
+        h = self._mapping(g)
+        assert h.group is self.target
+        return h
+
+    def compose(self, f: GroupHomomorphism) -> GroupHomomorphism:
+        """
+        self \circ f
+        """
+        assert f.target is self.source, f"Source of the second morphism ({self.source}) must coincide with the target of the first morphism ({f.target})."
+
+        def mapping(g):
+            return self(f(g))
+
+        return GroupHomomorphism(f.source, self.target, mapping)
+
+    def validate(self, g: GroupElement, h: GroupElement) -> bool:
+        """
+        Check whether f(gh) = f(g)f(h).
+        """
+        return self(g) * self(h) is self(g * h)
+
+    def validate_all(self):
+        """
+        Check the homomorphism property for all pairs of elements in the source group.
+        Note: this is only possible for finite groups.
+        """
+        assert len(self.source) > 0, "Cannot validate homomorphism property for infinite groups"
+        for g in self.source:
+            for h in self.source:
+                if not self.validate(g,h):
+                    return False
+        return True
+
+
+
+
+class CachedGroupMeta(type):
+    """
+    Metaclass for caching groups like Cn or Dn.
+    """
+    def __init__(cls, name, bases, dct):
+        super().__init__(name, bases, dct)
+        cls._cache = dict()
+
+    def __call__(cls, *args):
+        if args not in cls._cache:
+            cls._cache[args] = super().__call__(*args)
+
+        return cls._cache[args]

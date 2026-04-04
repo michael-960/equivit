@@ -1,13 +1,14 @@
 from enum import Enum
-from typing import Tuple, Optional, List
+from typing import Tuple, Optional, List, Literal
 import numpy as np
 
-from .base import Group, GroupElement
+from .base import Group, GroupElement, CachedGroupMeta, GroupHomomorphism
 from .action import GroupRepresentation, rotation_matrix, ComplexStructure, GroupAction
+from .cyclic import CyclicGroup
 
 
 
-class DihedralGroup(Group):
+class DihedralGroup(Group, metaclass=CachedGroupMeta):
     """
     Dihedral group of order 2n, denoted Dn.
 
@@ -155,6 +156,38 @@ class DihedralGroup(Group):
 
         self._real_irreps = irreps
         return self._real_irreps
+
+    def cyclic_subgroup(self) -> GroupHomomorphism:
+        """
+        Return the subgroup Cn
+        """
+        Cn = CyclicGroup(self.n)
+        return GroupHomomorphism(Cn, self, lambda x: self.from_value((0, x.value)))
+
+    def subgroup(self, type_: Literal['C', 'D'], m: int, q: Optional[int]=None) -> GroupHomomorphism:
+        if type_ == 'C':
+            assert q is None, f"q must not be specified for cyclic subgroups"
+            i = self.cyclic_subgroup()
+            j = i.source.subgroup(m)
+            return i.compose(j)
+
+        elif type_ == 'D':
+            assert q is not None, f"q must be specified for diherdral subgroups"
+            assert self.n % m == 0
+            k = self.n // m
+
+            Dm = DihedralGroup(m)
+
+            def mapping(g: GroupElement):
+                num_t, num_r = g.value
+                return self.from_value((num_t, num_t*q + num_r*k))
+
+            return GroupHomomorphism(Dm, self, mapping)
+        else:
+            raise ValueError(f"Subgroup type must be either 'C' or 'D', not {type_}")
+
+    def is_finite(self) -> bool:
+        return True
 
     def __repr__(self):
         return f'{self.__class__.__name__}({self.n})'

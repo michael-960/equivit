@@ -1,5 +1,5 @@
 
-from .base import Group, GroupElement
+from .base import Group, GroupElement, GroupHomomorphism
 from .action import GroupAction, GroupRepresentation, ComplexStructure, StandardComplexStructure
 
 from .dihedral import D2, D3, D4, D5, D6, DihedralGroup, dihedral_group_action, dihedral_group_representation

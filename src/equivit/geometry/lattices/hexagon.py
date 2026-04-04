@@ -82,8 +82,7 @@ class Hexagon(Lattice):
             r_action.append(self.index_enc[3][-b,-c,-a])
             t_action.append(self.index_enc[3][-a,-c,-b])
             
-        act = dihedral_group_action(D6, r_action=r_action, t_action=t_action)
-        self.action = act
+        self.action =dihedral_group_action(D6, r_action=r_action, t_action=t_action)
 
         # self.action_dict = {}
 

@@ -1,5 +1,5 @@
-from ..lattices import HexGrid, AbstractTriangleGrid, AbstractHexagonGrid, Honeycomb
-from torch import nn
+from ..geometry import Honeycomb, Triangle, decompose_set_action
+import torch.nn as nn
 import torch
 import torch.nn.functional as F
 import numpy as np
@@ -10,35 +10,123 @@ from ..geometry import Group, Lattice
 
 
 
-
-class EquivariantPatchEmbed:
+class EquivariantPatchEmbed(nn.Module):
     """
-    Patch embedding layer that respects the symmetries of the hexagonal lattice.
+    Patch embedding layer that respects the symmetries of a lattice.
     We use the irreps of the symmetry group to project the input features.
     """
-
     def __init__(self, 
         patch_lattice: Lattice, 
         in_channels: int, 
         out_channels: List[int],
-        subgroup: str = ''
+        subgroup: tuple,
+        streams: List[torch.cuda.Stream]=None
     ):
-        self.full_group = patch_lattice.symmetry_group
-        self.group, self.group_inclusion = self.full_group.subgroup(subgroup)
+        """
+        patch_lattice: the lattice structure of each patch. 
+        in_channels: number of input channels
+        out_channels: list of output channels for each irrep
+        subgroup: a tuple specifying the subgroup of the full symmetry group of the patch lattice that we want to respect.
+        """
+        super().__init__()
+        self.in_channels = in_channels
+        self.out_channels = out_channels
 
+        self.full_group = patch_lattice.symmetry_group
+        self.subgroup_inclusion = self.full_group.subgroup(*subgroup)
+
+        # The group that we will use to compute the irrep projections 
+        # is the specified subgroup specified by the user.
+        # This is a subgroup of the full symmetry group of the patch lattice.
+        self.group = self.subgroup_inclusion.source
+        self.irreps = self.group.real_irreps()
+        self.num_irreps = len(self.irreps)
+        self.irrep_dims = [irrep.dim for irrep in self.irreps.values()]
+
+        assert len(self.out_channels) == len(self.num_irreps), f"Number of output channels ({len(self.out_channels)}) must match number of irreps ({len(self.num_irreps)})"
+
+        # Pull back the action of the full symmetry group of the patch lattice 
+        # to get an action of the subgroup on the patch lattice.
+        self.action = patch_lattice.action.pullback(self.subgroup_inclusion)
+
+        # Decompose the representation of the subgroup on the patch lattice 
+        # into irreps to get the projections for each irrep.
+        # This is a dictionary mapping each irrep name to a list of projections, each of shape (Lpatch, irrep_dim).
+        # Note: each projection tensor is a sparse COO tensor.
+        self.projection_bases = decompose_set_action(self.action)
+
+        # Number of copies of each irrep in the representation of the subgroup on the patch lattice. 
+        self.num_irrep_copies = [len(proj) for proj in self.projection_bases.values()]
+
+        self.coefficients = nn.ParameterList(
+            [nn.Parameter(
+                torch.zeros((self.num_irrep_copies[i], 1, in_channels, 1, out_channels[i]))
+            ) 
+                for i in range(self.num_irreps)]
+        )
+
+        self.proj_indices = []
+        self.proj_values = []
+
+        for i, (irrep_name, projections) in enumerate(self.projection_bases.items()):
+            max_l = max([p.indices().shape[1] for p in projections])
+            d = self.irrep_dims[i]
+            _inds = []
+            _vals = []
+            for p in projections:
+                n_pad = max_l - p.indices().shape[1]
+                _inds.append(torch.cat([
+                                p.indices(), torch.zeros((1, n_pad), dtype=torch.long)
+                            ], dim=1))
+                _vals.append(torch.cat([
+                    p.values(), torch.zeros((n_pad,d), dtype=p.values().dtype)], dim=0).to(torch.float32)
+                    )
+
+            # (n_copies, max_l)  
+            self.proj_indices.append(torch.cat(_inds, dim=0))
+
+            # (n_copies, max_l, 1, d, 1)
+            self.proj_values.append(torch.stack(_vals, dim=0).unsqueeze(-2).unsqueeze(-1))
+
+        # Ideally we want to parallelize the computation for different irreps
+        # using different CUDA streams
+        if streams is None:
+            self.streams = [None for _ in range(self.num_irreps)]
+            self.has_streams = False
+        else:
+            self.streams = streams
+            self.has_streams = True
+
+        self.reset_parameters()
+
+
+    def reset_parameters(self):
+        for coeff in self.coefficients:
+            # xavier uniform for now, we should change this later
+            nn.init.xavier_uniform_(coeff)
 
     def forward(self, x: torch.Tensor) -> List[torch.Tensor]:
+        # x_unfolded = x[...,self.patch_inds]
 
-        x_unfolded = x[...,self.patch_inds]
+        # x should already have shape (*, Lpatch, C), where Lpatch is the number of pixels in each patch.
+        # the 'patchification' of the input should be done outside of this module to allow more flexibility in the patch structure.
 
-        outs = [None for _ in range(self.n_groups)]
-        streams = [torch.cuda.Stream() for _ in range(self.n_groups)]
+        outs = [None for _ in range(self.num_irreps)]
 
-        for i in range(self.n_groups):
-            with torch.cuda.stream(streams[i]):
-                outs[i] = torch.einsum('dczl,...cql->...dzq', projections[i], x_unfolded)
+        for i in range(self.num_irreps):
+            with torch.cuda.stream(self.streams[i]):
+                filt = torch.sparse_coo_tensor(
+                    self.proj_indices[i].flatten().unsqueeze(0),  # (1, n_copies*max_l)
+                    (self.coefficients[i] * self.proj_values[i]).flatten(0,1), # (n_copies*max_l, C, d, Ci)
+                    size=(self.action.num_elements,  self.in_channels, self.irrep_dims[i], self.out_channels[i])
+                ).to_dense() # (Lpatch, C, d, Ci)
+                outs[i] = (x.flatten(-2) @ filt.flatten(0,1).flatten(1,2)).unflatten(-1, (self.irrep_dims[i], self.out_channels[i])) # (*, d, Ci)
 
-        torch.cuda.synchronize()
+        # Question: how should we synchronize the streams here? 
+        if self.has_streams:
+            default_stream = torch.cuda.default_stream()
+            for stream in self.streams:
+                default_stream.wait_stream(stream)
 
         return outs
 
@@ -46,124 +134,3 @@ class EquivariantPatchEmbed:
 
 
 
-class HexPatchEmbed(nn.Module):
-    def __init__(
-        self, 
-        N: int, div: int,
-        in_channels: int,
-        out_channels: Tuple[int,int,int]
-        # C_a1: int, C_a2: int, C_e: int
-    ):
-        super().__init__()
-        assert N % div == 0
-        assert (N//div) % 3 == 0
-
-        Npatch = N // div
-        self.m = Npatch // 3
-
-        self.Npatch = Npatch
-
-        self.in_channels = in_channels
-
-        self.hexa = AbstractHexagonGrid(N)
-        self.honeycomb = Honeycomb(div)
-        self.triangle_patch_grid = AbstractTriangleGrid(Npatch)
-
-
-        self._setup_patch_indices()
-
-        multiplicity_a1 = self.triangle_patch_grid.filters_a1.shape[0]
-        multiplicity_a2 = self.triangle_patch_grid.filters_a2.shape[0]
-        multiplicity_e = self.triangle_patch_grid.filters_e.shape[0]
-
-        self.register_buffer('filters_a1', self.triangle_patch_grid.filters_a1)
-        self.register_buffer('filters_a2', self.triangle_patch_grid.filters_a2)
-        self.register_buffer('filters_e', self.triangle_patch_grid.filters_e)
-
-        C_a1, C_a2, C_e = out_channels        
-
-        self.a1_weights = nn.Parameter(torch.zeros(C_a1, self.in_channels, multiplicity_a1))
-        self.a2_weights = nn.Parameter(torch.zeros(C_a2, self.in_channels, multiplicity_a2))
-        self.e_weights = nn.Parameter(torch.zeros(C_e, self.in_channels, multiplicity_e))
-
-        self.reset_parameters()
-
-
-    def reset_parameters(self):
-        nn.init.xavier_uniform_(self.a1_weights)
-        nn.init.xavier_uniform_(self.a2_weights)
-        nn.init.xavier_uniform_(self.e_weights)
-
-    def _setup_patch_indices(self):
-        """
-        For each lattice site in the honeycomb, we find the indices of the
-        hexagonal lattice sites that belong to the corresponding patch.
-        """
-        patch_inds = []
-
-        for q in range(self.honeycomb.L):
-            i0, j0 = self.honeycomb.index_dec[2][q]
-            w, _q = self.honeycomb.index_dec[4][q]
-            i, j = i0*self.m, j0*self.m
-            inds = []
-            for _qpatch in range(self.triangle_patch_grid.L):
-                (r,s) = self.triangle_patch_grid.index_1t2[_qpatch]
-                if w == 0:
-                    a = min([i+j, j-self.m+s, self.m-r])
-                    inds.append(
-                        self.hexa.index_3t1[i+j-a, j-self.m+s-a, self.m-r-a]
-                    )
-                else:
-                    a = min([i+j, j+self.m-s, -self.m+r])
-                    inds.append(
-                        self.hexa.index_3t1[i+j-a, j+self.m-s-a, -self.m+r-a]
-                    )
-
-            patch_inds.append(inds)
-
-        # return np.array(patch_inds)
-        self.patch_inds = np.array(patch_inds)
-
-
-    def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor]:
-        """
-        :param x: tensor of shape (*, C, L), where L is the number of pixels per patch
-        :type x: torch.Tensor
-
-        :return: 3-tuple of features (y_a1, y_a2, y_e), one for each irrep (A1, A2, and E). 
-                The shape of each output tensor is 
-                - (*, C_a1, L) for A1
-                - (*, C_a2, L) for A2
-                - (*, C_e, 2, L) for E
-                where L is the number of patches
-        :rtype: Tuple[torch.Tensor]
-        """
-
-        x_unfolded = x[...,self.patch_inds]
-
-
-        # (C_a1, in_channels, Lpatch)
-        a1_matrix = torch.matmul(self.a1_weights, self.filters_a1)
-        
-        # (C_a2, in_channels, Lpatch)
-        a2_matrix = torch.matmul(self.a2_weights, self.filters_a2)
-
-        # (C_e, in_channels, 2, Lpatch)
-        e_matrix = torch.matmul(
-            self.e_weights, self.filters_e.flatten(1,2)
-            ).reshape(-1,self.in_channels,2,self.triangle_patch_grid.L)
-
-
-
-
-        # (C_A1, in_channels, Lpatch), (*, in_channels, Lhoneycomb, Lpatch) --> (*, C_A1, Lhoneycomb)
-        y_a1 = torch.einsum('dcl,...cql->...dq', a1_matrix, x_unfolded)
-
-        y_a2 = torch.einsum('dcl,...cql->...dq', a2_matrix, x_unfolded)
-
-        y_e = torch.einsum('dczl,...cql->...dzq', e_matrix, x_unfolded)
-
-        return y_a1, y_a2, y_e
-
-
-        

@@ -3,17 +3,28 @@ from enum import Enum
 import numpy as np
 from typing import Generic, TypeVar, Type, Tuple, Dict, Any, Literal, List, Optional
 
-from .base import Group, GroupElement
+from .base import Group, GroupElement, GroupHomomorphism
 
 # Group actions and representations
 
 
 
 class GroupRepresentation:
+    """
+    An object that records the representation matrices of a representation of a finite group.
+    """
     def __init__(self,
-            group: Group, rep_matrices: Dict[GroupElement, np.ndarray],
+            group: Group, 
+            rep_matrices: Dict[GroupElement, np.ndarray],
             complex_structure: Optional[ComplexStructure]=None
         ):
+        """
+        complex_structure: if the representation is over R and admits a complex structure, this argument specifies the complex structure. 
+        It should not be specified for representations over C.
+        """
+
+        assert group.is_finite(), "Only representations of finite groups are supported for now."
+
         self.group = group
 
         id_mat = rep_matrices[group.identity()]
@@ -63,9 +74,6 @@ class GroupRepresentation:
     def frobenius_schur_indicator(self):
         """
         Returns the Frobenius-Schur indicator of this representation. 
-            - 1 if the representation is real
-            - 0 if the representation is complex
-            - -1 if the representation is quaternionic
         """
         return np.mean([self.character(g*g) for g in self.group])
 
@@ -81,7 +89,6 @@ class GroupRepresentation:
             self.group, 
             {g: self.complex_structure.endo_r2c(self(g), 0, 1) for g in self.group}
             )
-
 
 
 class ComplexStructure:
@@ -106,6 +113,20 @@ class ComplexStructure:
         Convert an n-dimensional complex vector to a 2n-dimensional complex vector.
         """
         raise NotImplementedError()
+
+    def dual_vector_r2c(self, x: np.ndarray, axis: int): 
+        """
+        Suppose a is a dual vector. The corresponding complex dual vector b is defined by
+        <b, v> = <a, v> + i<a, -Jv>, where J is the complex structure.
+        """
+        ...
+
+    def dual_vector_c2r(self, x: np.ndarray, axis: int):
+        """
+        Suppose b is a complex dual vector. The corresponding real dual vector a is defined by
+        <a, v> = Re(<b, v>), where J is the complex structure.
+        """
+        ...
 
     def endo_r2c(self, x: np.ndarray, axis1: int, axis2: int):
         """
@@ -133,6 +154,12 @@ class StandardComplexStructure(ComplexStructure):
 
     def vector_c2r(self, x: np.ndarray, axis: int):
         return np.concat((x.real, x.imag), axis=axis)
+
+    def dual_vector_r2c(self, x, axis):
+        return self.vector_r2c(x, axis).conj()
+
+    def dual_vector_c2r(self, x: np.ndarray, axis: int):
+        return self.vector_c2r(x.conj(), axis)
 
     def endo_r2c(self, x: np.ndarray, axis1: int, axis2: int):
         x_re = np.split(
@@ -223,5 +250,19 @@ class GroupAction:
             rep_matrices[g][self.action_dict[g], all_inds] = 1.
         
         return GroupRepresentation(self.group, rep_matrices)
+
+
+    def pullback(self, homomorphism: GroupHomomorphism):
+        """
+        Given a group action G->Aut(X) and a homomorphism H->G, 
+        there is a natural action H->Aut(X), called the restriction or the pullback.
+        """
+        action_dict = dict()
+        for g in homomorphism.source:
+            action_dict[g] = self.action_dict[homomorphism(g)]
+
+        return GroupAction(homomorphism.source, action_dict)
+
+    
 
 

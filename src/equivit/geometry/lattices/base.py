@@ -1,5 +1,5 @@
 import torch
-from typing import Type, Union, ClassVar, Any
+from typing import Type, Union, ClassVar, Any, Annotated
 from ..groups import Group, decompose_set_action, TRIVIAL_GROUP, GroupAction, GroupElement
 import numpy as np
 
@@ -17,7 +17,7 @@ class Lattice:
     It might be more accurate to call this a point cloud (especially when the
     symmetry group is trivial), but we will stick with the term lattice.
     """
-    symmetry_group: Group = TRIVIAL_GROUP
+    symmetry_group = TRIVIAL_GROUP
 
     action_dict: dict
     index_dec: dict
@@ -43,7 +43,7 @@ class Lattice:
         """
         group = self.__class__.symmetry_group
         if isinstance(g, GroupElement):
-            assert g in group, f"Group element {g} not in group {group.__name__}"
+            assert g.group is group, f"Group element {g} not in group {group}"
         else:
             g = group[g]
 
@@ -158,6 +158,8 @@ class LatticeImageInterpolator:
 
         self.J0 = np.where(J >= W, W-1, J)
         self.J1 = np.where(J+1 >= W, W-1, J+1)
+
+        # TODO: also clip at 0?
 
         self.interp_alpha = torch.tensor(points[:,0] - self.I0)
         self.interp_beta = torch.tensor(points[:,1] - self.J0)
