@@ -138,6 +138,9 @@ def cyclic_group_action(
         group: CyclicGroup, 
         r_action: List[int]
 ) -> GroupAction:
+    """
+    Factory function to construct a group action of a cyclic group given the action of the generator r.
+    """
     action_dict = dict()
     r_action_ = np.array(r_action)
     for g in group:
@@ -154,7 +157,7 @@ def cyclic_group_representation(
         complex_structure: Optional[ComplexStructure]=None
 ) -> GroupRepresentation:
     """
-    A representation of Cn is specified by the image of the generator r.
+    Factory function to construct a representation of a cyclic group given the image of the generator r.
     """
     rep_matrices = dict()
     for g in group:

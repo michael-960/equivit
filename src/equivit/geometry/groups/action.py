@@ -203,7 +203,7 @@ class GroupAction:
             assert set(action_dict[g]) == set(_elements)
 
     def __call__(self, g: GroupElement) -> List[int]:
-        assert g.group is self.group
+        assert g.group is self.group, f"Group element {g} does not belong to the group of this action ({self.group})."
         return self.action_dict[g]
 
     def restrict_action(self, indices):
@@ -255,6 +255,8 @@ class GroupAction:
         """
         Given a group action G->Aut(X) and a homomorphism H->G, 
         there is a natural action H->Aut(X), called the restriction or the pullback.
+        Note that this is different from restricting the action to a subset of X that is invariant under the subgroup H, 
+        which is implemented in the restrict_action method.
         """
         action_dict = dict()
         for g in homomorphism.source:

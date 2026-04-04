@@ -1,7 +1,13 @@
 from __future__ import annotations
 from enum import Enum
 import numpy as np
-from typing import Generic, TypeVar, Type, Tuple, Dict, Any, Literal, List, Optional, Union, Callable
+from typing import Generic, TypeVar, Type, Tuple, Dict, Any, Literal, List, Optional, Union, Callable, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .action import GroupAction
+
+
+
 
 
 
@@ -80,6 +86,52 @@ class Group:
 
         # for irrep_name, irrep in complex_irreps.items():
 
+    def homogeneous_space_action(self, *subgroup_args) -> 'GroupAction':
+        """
+        Given some arguments specifying a subgroup, return the homogeneous space action of the group on the left cosets of the subgroup.
+        The subgroup can be recovered as the stabilizer of the identity coset.
+
+        Note: current implementation only works for finite groups, since we need to enumerate the cosets to compute the action.        """
+        assert self.is_finite(), "homogeneous_space_action is only implemented for finite groups."
+
+        from .action import GroupAction 
+
+        inclusion = self.subgroup(*subgroup_args)
+        subgroup = inclusion.source
+        elements = [g for g in self]
+
+        # compute left cosets of the subgroup
+        cosets = []
+        while len(elements) > 0:
+            g = elements[0]
+            coset = []
+            for h in subgroup:
+                coset.append(g * inclusion(h))
+
+            elements = [a for a in elements if a not in coset]
+            cosets.append(coset)
+
+        # set up a lookup dictionary to find the index of the coset that each group element belongs to
+        element_orbit_dict = {}
+        for g in self:
+            _coset_found = False
+            for i, coset in enumerate(cosets):
+                if g in coset:
+                    element_orbit_dict[g] = i
+                    _coset_found = True
+                    break
+            if not _coset_found:
+                raise ValueError(f"Group element {g} not found in any coset, this should not happen.")
+
+        # set up action dict
+        action_dict = {}
+
+        for g in self:
+            action_dict[g] = []
+            for i, coset in enumerate(cosets):
+                action_dict[g].append(element_orbit_dict[g*coset[0]])
+        
+        return GroupAction(self, action_dict)
 
 
 

@@ -7,6 +7,9 @@ from ..geometry import Lattice, Group
 from .lattice_irrep_handler import GroupActionIrrepProjectionCalculator
 
 
+# TODO: the current implementation does not include the hexvit case. We need to add this later.
+
+
 class EquivariantPositionalEncoding(nn.Module):
     def __init__(
         self,  
