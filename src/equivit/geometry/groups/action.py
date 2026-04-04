@@ -183,7 +183,6 @@ def rotation_matrix(theta):
         [np.sin(theta), np.cos(theta)],
     ])
 
-
 class GroupAction:
     """
     Group action on the set 

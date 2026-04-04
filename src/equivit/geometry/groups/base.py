@@ -44,9 +44,6 @@ class Group:
     def from_value(self, value: Any) -> GroupElement:
         raise NotImplementedError("This method should be implemented by subclasses to construct a group element from a value.")
 
-    def real_irreps(self):
-        raise NotImplementedError("This method should be implemented by subclasses to return the class that contains the irreducible representations of the group.")
-        
     def conjugacy_classes(self):
         """
         Returns the conjugacy classes of the group.
@@ -67,6 +64,24 @@ class Group:
     def element_repr(self, g: GroupElement) -> str:
         """Returns a string representation of the group element g."""
         return f'{self.__class__.__name__}[{str(g.value)}]'
+
+    def complex_irreps(self):
+        """
+        Returns the complex irreducible representations of the group.
+        """
+        raise NotImplementedError("This method should be implemented by subclasses to return the class that contains the complex irreducible representations of the group.")
+    def real_irreps(self):
+        raise NotImplementedError("This method should be implemented by subclasses to return the class that contains the irreducible representations of the group.")
+
+        # TODO: maybe we can compute the real irreps automatically from the complex irreps
+
+        # complex_irreps = self.complex_irreps()
+        # real_irreps = dict()
+
+        # for irrep_name, irrep in complex_irreps.items():
+
+
+
 
 
 class GroupElement:

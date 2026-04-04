@@ -65,6 +65,8 @@ class Hexagon(Lattice):
         # number of lattice points
         self.L = _q
 
+        # TODO: this is O(N^3), we should fix this
+
         for a in range(-self.N,self.N+1):
             for b in range(-self.N,self.N+1):
                 for c in range(-self.N,self.N+1):

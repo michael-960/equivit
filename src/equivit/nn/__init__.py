@@ -1,1 +1,1 @@
-from .patch_embed import EquivariantPatchEmbed
+from .patch_embed import EquivariantPatchEmbed, Patchify, SquarePatchify

@@ -38,18 +38,16 @@ def find_irrep_components(
     # This would result in linearly dependent vectors if we didn't take care of it.
 
     # Calculate the Frobenius-Schur indicator
-    # This is 1 if irrep is of real type, 0 if complex, and -1 if quaternionic
+    # This is 1 if irrep is of real type, 0 if complex, 
+    # and -2 (because we work over R) if quaternionic
     fb_ind = irrep.frobenius_schur_indicator()
 
     if abs(fb_ind) < 1e-7:
         rep_type = 'complex'
     elif abs(fb_ind-1) < 1e-7:
         rep_type = 'real'
-    elif abs(fb_ind+1) < 1e-7:
-        # maybe we can deal with quaternionic irreps in the future
-        raise ValueError(f'Quaternionic irreps are not supported (Frobenius-Schur indicator of the irrep is -1)')
     else:
-        raise ValueError(f'The Frobenius-Schur indicator is {fb_ind}, which is impossible for an irrep.')
+        raise ValueError(f'The Frobenius-Schur indicator is {fb_ind}, which is not supported.')
 
     # calculate the matrices of the representation Hom(U, V),
     # where U is the irrep and V is the representation

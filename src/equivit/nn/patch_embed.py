@@ -1,3 +1,4 @@
+
 from ..geometry import Honeycomb, Triangle, decompose_set_action
 import torch.nn as nn
 import torch
@@ -5,7 +6,51 @@ import torch.nn.functional as F
 import numpy as np
 from typing import Tuple, List
 
-from ..geometry import Group, Lattice
+from ..geometry import Group, Lattice, GroupAction
+
+from .lattice_irrep_handler import GroupActionIrrepProjectionCalculator
+
+
+class Patchify(nn.Module):
+    patch_inds: torch.Tensor
+    def __init__(self):
+        super().__init__()
+        self._setup_patch_indices()
+
+    def _setup_patch_indices(self):
+        raise NotImplementedError("This method should be implemented by subclasses to set up the patch indices for the specific lattice structure of the patches.")
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # x should have shape (*, L, C)
+
+        # assert H % self.patch_size == 0 and W % self.patch_size == 0, f"Image size ({H}x{W}) must be divisible by patch size ({self.patch_size})"
+        # x = x.unfold(2, self.patch_size, self.patch_size).unfold(3, self.patch_size, self.patch_size) # (B, C, H//P, W//P, P, P)
+        # x = x.contiguous().view(B, C, -1, self.patch_size*self.patch_size) # (B, C, num_patches, patch_size*patch_size)
+
+        x_unfolded = x[...,self.patch_inds,:] # (*, num_patches, Lpatch, C)
+        return x_unfolded
+
+
+class SquarePatchify(Patchify):
+    def __init__(self, img_size: int, patch_size: int):
+        self.img_size = img_size
+        self.patch_size = patch_size
+        super().__init__()
+
+    def _setup_patch_indices(self):
+        L = self.img_size**2
+        P = self.patch_size
+
+        patch_inds = []
+
+        for i in range(0, self.img_size, P):
+            for j in range(0, self.img_size, P):
+                _inds = []
+                for di in range(P):
+                    for dj in range(P):
+                        _inds.append((i+di)*self.img_size + (j+dj))
+                patch_inds.append(_inds)
+        self.patch_inds = torch.tensor(patch_inds, dtype=torch.long)
 
 
 
@@ -32,66 +77,25 @@ class EquivariantPatchEmbed(nn.Module):
         self.in_channels = in_channels
         self.out_channels = out_channels
 
-        self.full_group = patch_lattice.symmetry_group
-        self.subgroup_inclusion = self.full_group.subgroup(*subgroup)
-
-        # The group that we will use to compute the irrep projections 
-        # is the specified subgroup specified by the user.
-        # This is a subgroup of the full symmetry group of the patch lattice.
-        self.group = self.subgroup_inclusion.source
-        self.irreps = self.group.real_irreps()
-        self.num_irreps = len(self.irreps)
-        self.irrep_dims = [irrep.dim for irrep in self.irreps.values()]
-
-        assert len(self.out_channels) == len(self.num_irreps), f"Number of output channels ({len(self.out_channels)}) must match number of irreps ({len(self.num_irreps)})"
-
-        # Pull back the action of the full symmetry group of the patch lattice 
-        # to get an action of the subgroup on the patch lattice.
-        self.action = patch_lattice.action.pullback(self.subgroup_inclusion)
-
-        # Decompose the representation of the subgroup on the patch lattice 
-        # into irreps to get the projections for each irrep.
-        # This is a dictionary mapping each irrep name to a list of projections, each of shape (Lpatch, irrep_dim).
-        # Note: each projection tensor is a sparse COO tensor.
-        self.projection_bases = decompose_set_action(self.action)
-
-        # Number of copies of each irrep in the representation of the subgroup on the patch lattice. 
-        self.num_irrep_copies = [len(proj) for proj in self.projection_bases.values()]
+        self.proj_calc = GroupActionIrrepProjectionCalculator(
+            patch_lattice.action.pullback(patch_lattice.symmetry_group.subgroup(*subgroup))
+        )
+        assert len(self.out_channels) == len(self.proj_calc.num_irreps), f"Number of output channels ({len(self.out_channels)}) must match number of irreps ({len(self.proj_calc.num_irreps)})"
+        self.L = self.proj_calc.L
+        self.irrep_dims = self.proj_calc.irrep_dims
+        self.group = self.proj_calc.group
 
         self.coefficients = nn.ParameterList(
             [nn.Parameter(
-                torch.zeros((self.num_irrep_copies[i], 1, in_channels, 1, out_channels[i]))
+                torch.zeros((self.proj_calc.num_irrep_copies[i], in_channels*out_channels[i]))
             ) 
-                for i in range(self.num_irreps)]
+                for i in range(self.proj_calc.num_irreps)]
         )
-
-        self.proj_indices = []
-        self.proj_values = []
-
-        for i, (irrep_name, projections) in enumerate(self.projection_bases.items()):
-            max_l = max([p.indices().shape[1] for p in projections])
-            d = self.irrep_dims[i]
-            _inds = []
-            _vals = []
-            for p in projections:
-                n_pad = max_l - p.indices().shape[1]
-                _inds.append(torch.cat([
-                                p.indices(), torch.zeros((1, n_pad), dtype=torch.long)
-                            ], dim=1))
-                _vals.append(torch.cat([
-                    p.values(), torch.zeros((n_pad,d), dtype=p.values().dtype)], dim=0).to(torch.float32)
-                    )
-
-            # (n_copies, max_l)  
-            self.proj_indices.append(torch.cat(_inds, dim=0))
-
-            # (n_copies, max_l, 1, d, 1)
-            self.proj_values.append(torch.stack(_vals, dim=0).unsqueeze(-2).unsqueeze(-1))
 
         # Ideally we want to parallelize the computation for different irreps
         # using different CUDA streams
         if streams is None:
-            self.streams = [None for _ in range(self.num_irreps)]
+            self.streams = [None for _ in range(self.proj_calc.num_irreps)]
             self.has_streams = False
         else:
             self.streams = streams
@@ -106,28 +110,26 @@ class EquivariantPatchEmbed(nn.Module):
             nn.init.xavier_uniform_(coeff)
 
     def forward(self, x: torch.Tensor) -> List[torch.Tensor]:
+        """
+        x: (*, Lpatch, C), where Lpatch is the number of pixels in each patch and C is the number of input channels.
+        returns: a list of tensors, each of shape (*, Ci, di),
+                where di is the dimension of each irrep and Ci is the number of output channels for that irrep.
+        """
         # x_unfolded = x[...,self.patch_inds]
 
         # x should already have shape (*, Lpatch, C), where Lpatch is the number of pixels in each patch.
         # the 'patchification' of the input should be done outside of this module to allow more flexibility in the patch structure.
 
-        outs = [None for _ in range(self.num_irreps)]
+        outs = [None for _ in range(self.proj_calc.num_irreps)]
 
-        for i in range(self.num_irreps):
+        x = x.flatten(-2) # (*, Lpatch*C)
+
+        # each entry has shape (Lpatch, C*Ci, di) -> (Lpatch*C, Ci*di)
+        filts = self.proj_calc(self.coefficients).view(self.L*self.in_channels, self.out_channels[i]*self.irrep_dims[i])
+
+        for i in range(self.proj_calc.num_irreps):
             with torch.cuda.stream(self.streams[i]):
-                filt = torch.sparse_coo_tensor(
-                    self.proj_indices[i].flatten().unsqueeze(0),  # (1, n_copies*max_l)
-                    (self.coefficients[i] * self.proj_values[i]).flatten(0,1), # (n_copies*max_l, C, d, Ci)
-                    size=(self.action.num_elements,  self.in_channels, self.irrep_dims[i], self.out_channels[i])
-                ).to_dense() # (Lpatch, C, d, Ci)
-                outs[i] = (x.flatten(-2) @ filt.flatten(0,1).flatten(1,2)).unflatten(-1, (self.irrep_dims[i], self.out_channels[i])) # (*, d, Ci)
-
-        # Question: how should we synchronize the streams here? 
-        if self.has_streams:
-            default_stream = torch.cuda.default_stream()
-            for stream in self.streams:
-                default_stream.wait_stream(stream)
-
+                outs[i] = (x @ filts[i]).unflatten(-1, (self.out_channels[i], self.irrep_dims[i])) # (*, Ci, di)
         return outs
 
 

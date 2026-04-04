@@ -4,6 +4,7 @@ from .action import rotation_matrix, GroupRepresentation, StandardComplexStructu
 from typing import Optional, List
 
 
+
 class CyclicGroup(Group, metaclass=CachedGroupMeta):
     """
     Cyclic group of order n.
@@ -89,11 +90,13 @@ class CyclicGroup(Group, metaclass=CachedGroupMeta):
         Returns the complex irreducible representations of the cyclic group.
         For cyclic groups, all complex irreps are 1-dimensional and are given by the characters.
         """
+
         irreps = dict()
 
         for k in range(self.n):
             theta = 2 * np.pi * k / self.n
-            irreps[f'{k}'] = cyclic_group_representation(self, [[np.exp(1j * theta)]])
+            irrep = cyclic_group_representation(self, [[np.exp(1j * theta)]])
+            irreps[f'{k}'] = irrep
 
         return irreps
 
