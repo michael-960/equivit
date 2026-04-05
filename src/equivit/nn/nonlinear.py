@@ -66,7 +66,7 @@ class EquivariantNonlinear(nn.Module):
 
             # each entry in x[n] has shape (*, homogeneous_space_copies[n]*multiplicities[n][i], di)
             x_homog = self.fouriers[n].inverse_transform([
-                z.unflatten(-2, (self.homogeneous_space_copies[n], -1)) for z in x[n]
+                z.unflatten(-2, (self.homogeneous_space_copies[n], self.multiplicities[n][i])) for i, z in enumerate(x[n])
             ])
             # the output of inverse_transform has shape (*, homogeneous_space_copies[n], |X_n|) where X_n is the n-th homogeneous space
 

@@ -89,7 +89,7 @@ class GroupRepresentation:
             self.group, 
             {g: self.complex_structure.endo_r2c(self(g), 0, 1) for g in self.group}
             )
-
+    
 
 class ComplexStructure:
     """
@@ -264,6 +264,15 @@ class GroupAction:
 
         return GroupAction(homomorphism.source, action_dict)
 
-    
+    def irrep_multiplicities(self):
+        """
+        Return the multiplicity of each real irrep in the 
+        representation of the group on the vector space spanned functions from the set to R.
 
+        Return: a dictionary mapping each irrep name to its multiplicity in the decomposition.
+        """
+        from .utils import decompose_set_action
+        projections = decompose_set_action(self)
 
+        return {irrep_name: len(proj) for irrep_name, proj in projections.items()}
+        
