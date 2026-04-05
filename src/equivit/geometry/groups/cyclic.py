@@ -120,6 +120,9 @@ class CyclicGroup(Group, metaclass=CachedGroupMeta):
     def __repr__(self):
         return f'{self.__class__.__name__}({self.n})'
 
+    def subgroups_up_to_conjugacy(self) -> List[tuple]:
+        return [(m,) for m in range(1, self.n+1) if self.n % m == 0]
+
 
 
 TRIVIAL_GROUP = C1 = CyclicGroup(1)

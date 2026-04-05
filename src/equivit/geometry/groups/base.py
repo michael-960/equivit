@@ -76,6 +76,7 @@ class Group:
         Returns the complex irreducible representations of the group.
         """
         raise NotImplementedError("This method should be implemented by subclasses to return the class that contains the complex irreducible representations of the group.")
+
     def real_irreps(self):
         raise NotImplementedError("This method should be implemented by subclasses to return the class that contains the irreducible representations of the group.")
 
@@ -85,6 +86,17 @@ class Group:
         # real_irreps = dict()
 
         # for irrep_name, irrep in complex_irreps.items():
+
+    def subgroups_up_to_conjugacy(self) -> List[tuple]:
+        """
+        Returns a list of subgroups of the group, up to conjugacy. 
+        Note: the output of this method should be a list of argument tuples to
+        be passed to the subgroup method to obtain the corresponding subgroup
+        homomorphisms.
+
+        Note: two subgroups H, K are conjugate if there exists g in G such that gHg^{-1} = K.
+        """
+        raise NotImplementedError("This method should be implemented by subclasses to return a list of subgroups of the group, up to conjugacy.")
 
     def homogeneous_space_action(self, *subgroup_args) -> 'GroupAction':
         """
@@ -132,6 +144,24 @@ class Group:
                 action_dict[g].append(element_orbit_dict[g*coset[0]])
         
         return GroupAction(self, action_dict)
+
+    def all_homogeneous_space_actions(self) -> 'List[GroupAction]':
+        """
+        Return the homogeneous space actions of the group on the left cosets of all subgroups.
+        If two subgroups are conjugate, then the corresponding homogeneous space actions are isomorphic, so we only return one of them.
+
+        Note: this is only implemented for finite groups (specifically for those whose subgroups_up_to_conjugacy method is implemented).
+        """
+        assert self.is_finite(), "all_homogeneous_space_actions is only implemented for finite groups."
+
+        actions = []
+        for subgroup_args in self.subgroups_up_to_conjugacy():
+            actions.append(self.homogeneous_space_action(*subgroup_args))
+
+        return actions
+    
+
+ 
 
 
 
