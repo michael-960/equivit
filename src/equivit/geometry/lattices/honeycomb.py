@@ -8,6 +8,8 @@ from typing import Union, cast, TYPE_CHECKING
 
 from .base import Lattice
 
+from .advanced import AdvancedLattice
+
 
 class Honeycomb(Lattice):
     """
@@ -91,22 +93,6 @@ class Honeycomb(Lattice):
             
         self.action = dihedral_group_action(D6, r_action=r_action, t_action=t_action)
 
-        # self.action_dict = {}
-        # for g in D6:
-        #     _dict = []
-        #     for q in range(self.L):
-        #         a,b,c = self.index_dec[3][q]
-        #         for x in g.word[::-1]:
-        #             if x == 'r':
-        #                 a,b,c = -b,-c,-a
-        #             elif x == 't':
-        #                 a,b,c = -a,-c,-b
-        #             else:
-        #                 raise ValueError(f'Invalid D6 generator: {x}')
-        #         q_new = self.index_enc[3][a,b,c]
-        #         _dict.append(q_new)
-        #     self.action_dict[g] = np.array(_dict, dtype=np.int64)
-
     @property
     def points(self):
         e1 = np.array([1,0])
@@ -137,48 +123,34 @@ class Honeycomb(Lattice):
         return verts
 
 
-# class HoneyCombGrid:
-#     """
-#     A honeycomb lattice
-#     """
-#     def __init__(self, N: int, div: int=1):
-#         e1 = np.array([1, 0])
-#         e2 = np.array([1, np.sqrt(3)])/2
-#         assert N % div == 0
-#         assert (N//div) % 3 == 0
-#         f = (N // div) // 3
-        
-#         points = []
-#         points2 = []
 
-#         self.abs_2inds_1 = []
-#         self.abs_2inds_2 = []
+class AdvancedHoneycomb(Honeycomb, AdvancedLattice):
+    """
+    """
+    def __init__(self, N: int):
+        super().__init__(N) 
 
-#         _q1 = 0
-#         _q2 = 0
+        self.subgroup_incl = self.symmetry_group.subgroup('D', 3, 0)
+        self.subgroup = self.subgroup_incl.source
 
-#         for n in range(-N, N+1):
-#             for m in range(-N, N+1):
-#                 i = (3*n+2)*f
-#                 j = (3*m+2)*f
-#                 if  (-N<= i + j <= N) and (-N <= i <= N) and (-N <= j <= N):
-#                     points.append(i*e1 + j*e2)
-#                     self.abs_2inds_1.append([i,j])
-#                     _q1 += 1
-                    
-#                 k = (3*n+1)*f
-#                 l = (3*m+1)*f
-#                 if  (-N<= k + l <= N) and (-N <= k <= N) and (-N <= l <= N):
-#                     points2.append(k*e1 + l*e2)
-#                     self.abs_2inds_2.append([k,l])
-#                     _q2 += 1
+        self.coset_representatives = [self.symmetry_group.from_value((0,0)),  # identity
+                                      self.symmetry_group.from_value((0,3))   # r^3
+                                      ]
 
-#         self.points = np.array(points)
-#         self.delta_y = (2*N - N*np.sqrt(3)) / 2
-#         self.points = (np.array(points) + np.array([N, np.sqrt(3) / 2 * N])) + np.array([0,self.delta_y])
+        # For each G-orbit O, we need to choose a specific H-orbit
+        # This is done by choosing a specific base point x_0 in O
 
-#         self.points2 = np.array(points2)
-#         self.points2 = (np.array(points2) + np.array([N, np.sqrt(3) / 2 * N])) + np.array([0,self.delta_y])
-        
-        
-        
+
+        self.orbits = self.action.orbits()
+        self.base_points = []
+
+        for orbit in self.orbits:
+            q = orbit[0]
+
+            # This should be taken care of by the orbits() method
+            assert self.index_dec[4][q][0] == 0, "The base point must be of type a"
+            self.base_points.append(q)
+
+
+
+

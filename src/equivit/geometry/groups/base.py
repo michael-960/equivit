@@ -4,7 +4,7 @@ import numpy as np
 from typing import Generic, TypeVar, Type, Tuple, Dict, Any, Literal, List, Optional, Union, Callable, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from .action import GroupAction
+    from .action import GroupAction, GroupRepresentation
 
 
 
@@ -71,6 +71,11 @@ class Group:
         """Returns a string representation of the group element g."""
         return f'{self.__class__.__name__}[{str(g.value)}]'
 
+    def trivial_irrep(self, complex=False) -> 'GroupRepresentation':
+        from .action import GroupRepresentation
+        dtype = np.complex128 if complex else np.float64
+        return GroupRepresentation(self, lambda g: np.array([[1.]], dtype=dtype))
+
     def complex_irreps(self):
         """
         Returns the complex irreducible representations of the group.
@@ -109,21 +114,10 @@ class Group:
         from .action import GroupAction 
 
         inclusion = self.subgroup(*subgroup_args)
-        subgroup = inclusion.source
-        elements = [g for g in self]
 
         # compute left cosets of the subgroup
-        cosets = []
-        while len(elements) > 0:
-            g = elements[0]
-            coset = []
-            for h in subgroup:
-                coset.append(g * inclusion(h))
+        cosets = self.left_cosets(inclusion)
 
-            elements = [a for a in elements if a not in coset]
-            cosets.append(coset)
-
-        # set up a lookup dictionary to find the index of the coset that each group element belongs to
         element_orbit_dict = {}
         for g in self:
             _coset_found = False
@@ -159,7 +153,36 @@ class Group:
             actions.append(self.homogeneous_space_action(*subgroup_args))
 
         return actions
-    
+
+    def is_normal(self, subset: List[GroupElement]) -> bool:
+        """
+        Check if a subset of the group is a normal subgroup.
+        """
+        for g in subset: assert g.group is self, "All elements in the subset must belong to the group."
+
+        for g in self:
+            for h in subset:
+                if g * h * g.inv() not in subset:
+                    return False
+        return True
+
+    def left_cosets(self, inclusion: GroupHomomorphism) -> List[List[GroupElement]]:
+        # compute left cosets of the subgroup
+        assert inclusion.is_injective(), "The inclusion map must be injective."
+
+        subgroup = inclusion.source
+
+        elements = [g for g in self]
+        cosets = []
+        while len(elements) > 0:
+            g = elements[0]
+            coset = []
+            for h in subgroup:
+                coset.append(g * inclusion(h))
+
+            elements = [a for a in elements if a not in coset]
+            cosets.append(coset)
+        return cosets
 
  
 
@@ -224,6 +247,10 @@ class GroupHomomorphism:
             return self(f(g))
 
         return GroupHomomorphism(f.source, self.target, mapping)
+
+    def is_injective(self) -> bool:
+        image = [self(g) for g in self.source]
+        return len(set(image)) == len(image)
 
     def validate(self, g: GroupElement, h: GroupElement) -> bool:
         """

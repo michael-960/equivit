@@ -2,9 +2,10 @@ import numpy as np
 from .base import Group, GroupElement, CachedGroupMeta, GroupHomomorphism
 from .action import rotation_matrix, GroupRepresentation, StandardComplexStructure, ComplexStructure, GroupAction
 from typing import Optional, List
+from ...registry import GROUP
 
 
-
+# @GROUP.register('CyclicGroup')
 class CyclicGroup(Group, metaclass=CachedGroupMeta):
     """
     Cyclic group of order n.

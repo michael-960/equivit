@@ -15,11 +15,6 @@ class AppendClassToken(nn.Module):
 
         self.cls_token = nn.Parameter(torch.zeros(1, dim, 1), requires_grad=True)
 
-        # self.cls_tokens = nn.ParameterList([
-        #     nn.Parameter(torch.zeros(dims[i], 1), requires_grad=(i==0)) 
-        #     for i in range(len(dims))
-        # ])
-
         # TODO: In general, I'm not sure what the best initilization scheme is. 
         std = 4*.02
         trunc_normal_(self.cls_token , std=std)

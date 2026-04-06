@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 from typing import List, Tuple
 
-from ..geometry import Lattice, Group
+from ..geometry import Lattice, Group, AdvancedLattice
 from .lattice_irrep_handler import GroupActionIrrepProjectionCalculator
 
 
@@ -11,19 +11,29 @@ from .lattice_irrep_handler import GroupActionIrrepProjectionCalculator
 
 
 class EquivariantPositionalEncoding(nn.Module):
+    """
+    Equivariant positional encoding.
+
+    Let G be a group acting on a set X.
+
+    Let (rho, V) be a G-representation (in our case, V is the direct sum of irreps of G, with multiplicities given by `dims`).
+
+    This layer adds a learnable positional encoding f: X -> V. 
+
+    The positional encoding is equivariant under the G-action, i.e.
+    f(g.x) = rho(g) f(g^{-1}.x) for all g in G, x in X.
+    """
     def __init__(
         self,  
         lattice: Lattice, 
         dims: List[int],
-        subgroup: tuple,
         streams: List[torch.cuda.Stream]=None
     ):
         super().__init__()
         self.dims = dims 
 
-        self.proj_calc = GroupActionIrrepProjectionCalculator(
-            lattice.action.pullback(lattice.symmetry_group.subgroup(*subgroup))
-        )
+        self.proj_calc = GroupActionIrrepProjectionCalculator(lattice.action, streams=streams)
+
         assert len(self.dims) == len(self.proj_calc.num_irreps), f"Number of dimensions ({len(self.dims)}) must match number of irreps ({len(self.proj_calc.num_irreps)})"
         self.L = self.proj_calc.L
         self.irrep_dims = self.proj_calc.irrep_dims
@@ -65,3 +75,30 @@ class EquivariantPositionalEncoding(nn.Module):
                 x[i] = x[i] + pos_enc[i] # (*, L, Ci, di)
 
         return x
+
+
+
+
+class AdvancedEquivariantPositionalEncoding(nn.Module):
+    """
+    Consider the following scenario:
+    - We have a transitive left G action on a set X.
+    - Choose a base point x_0 in X
+    - H is a normal subgroup of G that contains Stab(x_0)
+        - Note: since H is normal and the G-action is transitive, H also contains Stab(x) for all x in X.
+    - We are given an H-representation (rho, V)
+
+    Given this data, we can construct a G-representation on the 
+    space of functions X -> V.
+    """
+    def __init__(
+        self,  
+        lattice: AdvancedLattice, 
+        dims: List[int],
+    ):
+        self.lattice = lattice
+        self.dims = dims
+
+
+    
+        ...

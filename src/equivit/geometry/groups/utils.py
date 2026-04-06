@@ -7,7 +7,8 @@ from .action import GroupRepresentation, GroupAction
 
 
 def find_irrep_components(
-    rep: GroupRepresentation, irrep: GroupRepresentation,
+    rep: GroupRepresentation, 
+    irrep: GroupRepresentation,
     clip_small_values=0.
 ):
     """
@@ -23,14 +24,6 @@ def find_irrep_components(
     """
     assert rep.group is irrep.group
     group = irrep.group
-
-    if type(rep) is dict:
-        raise TypeError(f'Representations can no longer be specified by a dictionary. Please pass an instance of GroupRepresentation instead.')
-        # return find_irrep_components(
-        #     lambda g: rep[g],
-        #     irrep, group,
-        #     clip_small_values=clip_small_values
-        # )
 
     rep_dim = rep(group.identity()).shape[0]
 
@@ -97,18 +90,8 @@ def decompose_set_action(action: GroupAction):
 
     irreps = group.real_irreps()
 
-
     # First, compute the orbits of the group action on the set. 
-    _dots = set(range(action.num_elements))
-    orbits = []
-    while len(_dots) > 0:
-        dot = next(iter(_dots))
-        orbit = []
-        for g in group:
-            i = action(g)[dot]
-            if i not in orbit: orbit.append(i)
-        orbits.append(orbit)
-        _dots = _dots.difference(orbit)
+    orbits = action.orbits()
 
     irrep_projections = {irrep_name: [] for irrep_name in irreps.keys()}
 

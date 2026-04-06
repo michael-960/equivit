@@ -6,8 +6,10 @@ from .base import Group, GroupElement, CachedGroupMeta, GroupHomomorphism
 from .action import GroupRepresentation, rotation_matrix, ComplexStructure, GroupAction
 from .cyclic import CyclicGroup
 
+from ...registry import GROUP
 
 
+# @GROUP.register('DihedralGroup')
 class DihedralGroup(Group, metaclass=CachedGroupMeta):
     """
     Dihedral group of order 2n, denoted Dn.
