@@ -126,6 +126,7 @@ class Honeycomb(Lattice):
 
 class AdvancedHoneycomb(Honeycomb, AdvancedLattice):
     """
+    Experimental.
     """
     def __init__(self, N: int):
         super().__init__(N) 

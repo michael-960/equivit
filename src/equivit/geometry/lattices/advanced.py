@@ -26,7 +26,6 @@ class AdvancedLattice(Lattice):
 
 
 
-
 def induce_and_find_invariant_vectors(
     action: GroupAction,
     subgroup_args: tuple,

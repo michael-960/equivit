@@ -6,4 +6,4 @@ from .triangle import Triangle
 from .square import Square
 from .honeycomb import Honeycomb
 
-from .advanced import induce_and_find_invariant_vectors
+# from .advanced import induce_and_find_invariant_vectors

@@ -340,6 +340,8 @@ class GroupAction:
             the tensor product of self.to_linear_representation() and the given representation of the group.
 
             The current implementation is extremely slow, so it should only be used for small |X| and small dim(V).
+
+            TODO: relate this to Ind_K^G(Res_K^H(V)), where K = Stab(x_0)
         """
         assert self.is_transitive(), "Currently only transitive group actions are supported."    
         assert base_point in range(self.num_elements), f"base_point must be an integer in the range [0, {self.num_elements-1}]" 

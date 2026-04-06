@@ -1,4 +1,7 @@
-from .pos_enc import EquivariantPositionalEncoding
+from .pos_enc import EquivariantPositionalEncoding, EquivariantInducedPositionalEncoding
 from .patch_embed import EquivariantPatchEmbed, Patchify, SquarePatchify
 from .nonlinear import Fourier, EquivariantNonlinear
 from .linear import EquivariantLinear
+
+
+from .lattice_irrep_handler import GroupActionIrrepProjectionCalculator, InducedRepresentationInvariantSubspaceCalculator

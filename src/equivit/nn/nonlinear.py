@@ -14,7 +14,7 @@ class EquivariantNonlinear(nn.Module):
         activation: Callable=nn.ReLU(),
     ):
         """
-
+        inverse Fourier transform -> pointwise nonlinearity -> Fourier transform
         """
         super().__init__()
         self.group = group
