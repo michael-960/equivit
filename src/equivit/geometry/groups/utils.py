@@ -1,6 +1,6 @@
 import numpy as np
 import torch
-from typing import Type, List
+from typing import Type, List, Dict
 
 from .base import Group
 from .action import GroupRepresentation, GroupAction, GroupElement
@@ -10,17 +10,20 @@ def find_irrep_components(
     rep: GroupRepresentation, 
     irrep: GroupRepresentation,
     clip_small_values=0.
-):
+) -> np.ndarray:
     """
-    rep: a representation over R 
-    irrep: an irreducible representation over R
-    group: the group class
 
-    clip_small_values: small output entries (due to numerical error) will be set to zero
+    Args:
+        rep: a representation over R 
+        irrep: an irreducible representation over R
+        group: the group class
 
-    Return: an array of shape (multiplicity, irrep_dim, rep_dim)
+        clip_small_values: small output entries (due to numerical error) will be set to zero
 
-    warning: only works when both rep and irrep are orthogonal
+    Returns: 
+        an array of shape (multiplicity, irrep_dim, rep_dim)
+
+    warning: only works properly when both rep and irrep are orthogonal (i.e. the matrices are orthogonal)
     """
     assert rep.group is irrep.group
     group = irrep.group
@@ -76,13 +79,15 @@ def find_irrep_components(
 
 
 
-def decompose_set_action(action: GroupAction):
+def decompose_set_action(action: GroupAction) -> Dict[str, List[torch.sparse.FloatTensor]]:
     """
     Given a group action on a set, decompose the corresponding linear representation on
     the vector space spanned by the set elements into irreps. 
 
-    action: a GroupAction object
-    return: a dictionary mapping each irrep name to a list of projections, each
+    Args:
+        action: a GroupAction object
+    Returns: 
+        a dictionary mapping each irrep name to a list of projections, each
         of shape (n, irrep_dim), where n is the size of the set and irrep_dim is the
         dimension of the irrep. Each projection is a sparse matrix in COO format.
     """
@@ -123,9 +128,17 @@ def induce_and_find_invariant_vectors(
     basepoints: List[int]
 ):
     """
-    Find a basis for the invariant subspace of the induced representation.
+    Find a basis for the invariant subspace of the induced representation (see Action.induce_from for details of the construction).
 
-    basepoints: list of integers, one for each G-orbit of X. 
+    Args:
+        action: the group action
+        subgroup_args: the arguments specifying the subgroup to induce from (see Action.induce_from for details)
+        subgroup_representation: a representation of the subgroup specified by subgroup_args
+        representatives: a list of representatives for the cosets of the
+            subgroup in the group. The order is important and should correspond to
+            the order of the cosets returned by action.group.left_cosets (see Group.left_cosets for details).
+        basepoints: list of integers, one for each G-orbit of X.  The order is
+                important and should correspond to the order of the orbits returned by action.orbits().
 
     Note: each basepoint is an integer in [0, |O|), where O is the corresponding G-orbit.
     """

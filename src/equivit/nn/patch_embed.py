@@ -64,21 +64,23 @@ class EquivariantPatchEmbed(nn.Module):
         patch_lattice: Lattice, 
         in_channels: int, 
         out_channels: List[int],
-        subgroup: tuple,
+        subgroup_args: tuple,
         streams: List[torch.cuda.Stream]=None
     ):
         """
-        patch_lattice: the lattice structure of each patch. 
-        in_channels: number of input channels
-        out_channels: list of output channels for each irrep
-        subgroup: a tuple specifying the subgroup of the full symmetry group of the patch lattice that we want to respect.
+        Args:
+            patch_lattice: the lattice structure of each patch. 
+            in_channels: number of input channels
+            out_channels: list of output channels for each irrep
+            subgroup_args: a tuple specifying the subgroup of the full symmetry group of the patch lattice that we want to respect. 
+                See Group.subgroup() for details on how to specify this.
         """
         super().__init__()
         self.in_channels = in_channels
         self.out_channels = out_channels
 
         self.proj_calc = GroupActionIrrepProjectionCalculator(
-            patch_lattice.action.pullback(patch_lattice.symmetry_group.subgroup(*subgroup))
+            patch_lattice.action.pullback(patch_lattice.symmetry_group.subgroup(*subgroup_args))
         )
         assert len(self.out_channels) == len(self.proj_calc.num_irreps), f"Number of output channels ({len(self.out_channels)}) must match number of irreps ({len(self.proj_calc.num_irreps)})"
         self.L = self.proj_calc.L
@@ -111,9 +113,11 @@ class EquivariantPatchEmbed(nn.Module):
 
     def forward(self, x: torch.Tensor) -> List[torch.Tensor]:
         """
-        x: (*, Lpatch, C), where Lpatch is the number of pixels in each patch and C is the number of input channels.
-        returns: a list of tensors, each of shape (*, Ci, di),
-                where di is the dimension of each irrep and Ci is the number of output channels for that irrep.
+        Args:
+            x: tensor of shape (*, Lpatch, C), where Lpatch is the number of pixels in each patch and C is the number of input channels.
+        Returns: 
+            a list of tensors, each of shape (*, Ci, di),
+            where di is the dimension of each irrep and Ci is the number of output channels for that irrep.
         """
         # x_unfolded = x[...,self.patch_inds]
 

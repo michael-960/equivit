@@ -103,8 +103,11 @@ class GroupRepresentation:
 
 class ComplexStructure:
     """
-    If V is a real vector space, a complex structure is a linear map J V->V
+    If V is a real vector space, a complex structure is a linear map J: V->V
     that squares to -1. 
+
+    For us, a complex structure will mean something more: 
+    it will specify how to convert vectors and endomorphisms of the real vector space to complex ones.
 
     Subclasses should implement such a structure by directly specifying 
     how real vectors and endomorphisms are converted to complex ones and vice versa.

@@ -8,13 +8,19 @@ from ..geometry import GroupAction, decompose_set_action, Group
 
 
 class EquivariantNonlinear(nn.Module):
+    """
+    inverse Fourier transform -> pointwise nonlinearity -> Fourier transform
+    """
     def __init__(self,
         group: Group,
         homogeneous_space_copies: List[int],
         activation: Callable=nn.ReLU(),
     ):
         """
-        inverse Fourier transform -> pointwise nonlinearity -> Fourier transform
+        Args:
+            group: the group for which the equivariant nonlinearity is defined
+            homogeneous_space_copies: list of number of copies for each homogeneous space
+            activation: activation function to use in the pointwise nonlinearity
         """
         super().__init__()
         self.group = group

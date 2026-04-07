@@ -6,10 +6,17 @@ from typing import Tuple, List
 from timm.layers import trunc_normal_
 
 class AppendClassToken(nn.Module):
+    """
+    This layer appends a learnable class token to the input sequence for the trivial representation, and pads zeros for the non-trivial representations.
+    """
     def __init__(self, 
         dim: int,
-        streams: List[torch.cuda.Stream]=None
+        # streams: List[torch.cuda.Stream]=None
     ):
+        """
+        Args:
+            dim: number of channels for the trivial representattion (the first irrep).
+        """
         super().__init__()
         self.dim = dim
 
@@ -21,9 +28,12 @@ class AppendClassToken(nn.Module):
 
     def forward(self, x: List[torch.Tensor]) -> List[torch.Tensor]:
         """
-        x: list of tensors, each of shape (*, L, Ci, di) for each irrep
+        Args:
+            x: list of tensors, each of shape (*, L, Ci, di) for each irrep
+        Returns: 
+            list of tensors, each of shape (*, L+1, Ci, di)
+
         note: d0 = 1 because the trivial representation is one-dimensional
-        returns: list of tensors, each of shape (*, L+1, Ci, di)
         """
         y = []
         

@@ -3,8 +3,7 @@ from .action import GroupRepresentation
 import numpy as np
 
 
-# This file is experimenta. 
-# Nothing here is used elsewhere in the codebase yet.
+# THIS FILE IS EXPERIMENTAL AND NOT USED ANYWHERE ELSE IN THE CODEBASE YET.
 # Idea: we often want to attach some extra information to each irrep. 
 
 class RepresentationType(Enum):

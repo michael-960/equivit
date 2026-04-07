@@ -17,7 +17,8 @@ class ListLayerScale(nn.Module):
 
     def forward(self, x):
         """
-        x: list of tesnors, each of shape (*, C_i, d_i)
+        Args:
+            x: list of tesnors, each of shape (*, C_i, d_i)
         """
         return [self.alpha[i]*x[i] for i in range(self.n_tensors)]
 
@@ -41,6 +42,10 @@ class ListAffine(nn.Module):
         self.n_tensors = len(dims)
 
     def forward(self, x: List[torch.Tensor]) -> List[torch.Tensor]:
+        """
+        Args:
+            x: list of tesnors, each of shape (*, C_i, d_i)
+        """
         y = [self.alpha[i]*x[i] for i in range(self.n_tensors)]
 
         if self.beta is not None:
@@ -72,7 +77,8 @@ class EquivariantLayerNorm(nn.Module):
 
     def forward(self, x: List[torch.Tensor]) -> List[torch.Tensor]:
         """
-        x: list of tesnors, each of shape (*, C_i, d_i)
+        Args:
+            x: list of tesnors, each of shape (*, C_i, d_i)
         """
         stds = [
             torch.sqrt(z.var(dim=-2, correction=0, keepdim=True).sum(dim=-1, keepdim=True) + self.eps)

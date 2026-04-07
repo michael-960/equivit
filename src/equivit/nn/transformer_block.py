@@ -79,8 +79,10 @@ class EquivariantTranformerBlock(nn.Module):
 
     def forward(self, x: List[torch.Tensor]) -> List[torch.Tensor]:
         """
-        x: list of tensors, each of shape (*, L, Ci, di), where di is the dimension of the i-th irrep
-        return: list of tensors, each of shape (*, L, Ci, di)
+        Args:
+            x: list of tensors, each of shape (*, L, Ci, di), where di is the dimension of the i-th irrep
+        Returns: 
+            list of tensors, each of shape (*, L, Ci, di)
         """
         if self.training and self.sample_drop_ratio > 0.:
             y = self.drop_path_1(self.ls1(self.attn(self.norm1(x))))

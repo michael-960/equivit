@@ -20,7 +20,7 @@ class EquivariantPositionalEncoding(nn.Module):
 
     This layer adds a learnable positional encoding f: X -> V. 
 
-    The positional encoding is equivariant under the G-action, i.e.
+    The positional encoding vector itself is invariant under the G-action, i.e.
     f(g.x) = rho(g) f(g^{-1}.x) for all g in G, x in X.
     """
     def __init__(
@@ -29,6 +29,12 @@ class EquivariantPositionalEncoding(nn.Module):
         dims: List[int],
         streams: List[torch.cuda.Stream]=None
     ):
+        """
+        Args:
+            lattice: the lattice for which the positional encoding is defined
+            dims: list of dimensions for each irrep in the representation V
+            streams: list of CUDA streams to use for each irrep (optional)
+        """
         super().__init__()
         self.dims = dims 
         self.proj_calc = GroupActionIrrepProjectionCalculator(lattice.action, streams=streams)

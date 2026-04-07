@@ -19,6 +19,13 @@ class EquivariantLinear(nn.Module):
         trivial_rep_bias: bool=True,
         streams: List[torch.cuda.Stream]=None
     ):
+        """
+        Args:
+            dims_in: list of input channels for each irrep
+            dims_out: list of output channels for each irrep
+            trivial_rep_bias: whether to include bias for the trivial representation (the first irrep)
+            streams: list of CUDA streams to use for each irrep (optional)
+        """
         super().__init__()
         assert len(dims_in) == len(dims_out), "dims_int and dims_out must have the same length"
         self.num_irreps = len(dims_in)

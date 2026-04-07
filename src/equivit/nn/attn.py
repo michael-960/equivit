@@ -12,6 +12,10 @@ from .drop import ListDropout
 
 
 class EquivariantAttention(nn.Module):
+    """
+    This has little to do with group theory. 
+    It's just a multi-head attention layer that processes each irrep separately.
+    """
     def __init__(self,
         dims: List[int],
         num_heads: int,
@@ -21,8 +25,13 @@ class EquivariantAttention(nn.Module):
         proj_drop: float = 0.
     ):
         """
-        This has little to do with group theory. 
-        It's just a multi-head attention layer that processes each irrep separately.
+        Args:
+            dims: list of input/output channels for each irrep
+            num_heads: number of attention heads *per irrep* (must divide all input channels)
+            trivial_rep_attn_bias: whether to include bias for the trivial representation in the attention linear layer computing q, k, v
+            attn_drop: dropout probability for attention
+            trivial_rep_proj_bias: whether to include bias for the trivial representation in the output projection linear layer
+            proj_drop: dropout probability for the output projection
         """
         super().__init__()
         for c in dims: assert c % num_heads == 0, 'num_heads must divide all input channels'
@@ -49,7 +58,10 @@ class EquivariantAttention(nn.Module):
 
     def forward(self, x: List[torch.Tensor]) -> List[torch.Tensor]:
         """
-        x: list of tensors, each of shape (*, L, Ci, di), where di is the dimension of the i-th irrep
+        Args:
+            x: list of tensors, each of shape (*, L, Ci, di), where di is the dimension of the i-th irrep
+        Returns:
+            list of tensors, each of shape (*, L, Ci, di)
         """
 
         # list of tensors of shape (*, L, 3*Ci, d)

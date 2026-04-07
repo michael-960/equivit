@@ -10,7 +10,9 @@ class Invariantization(nn.Module):
 
     def forward(self, x):
         """
-        x: list of tensors, each of shape (*, C_i, d_i)
-        return: (*, sum_i C_i)
+        Args:
+            x: list of tensors, each of shape (*, C_i, d_i)
+        Returns:
+            Tensor of shape (*, sum_i C_i)
         """
         return torch.cat([y.norm(dim=-1) for y in x], dim=-1)
