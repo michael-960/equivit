@@ -82,8 +82,8 @@ class EquivariantPatchEmbed(nn.Module):
         self.proj_calc = GroupActionIrrepProjectionCalculator(
             patch_lattice.action.pullback(patch_lattice.symmetry_group.subgroup(*subgroup_args))
         )
-        assert len(self.out_channels) == len(self.proj_calc.num_irreps), f"Number of output channels ({len(self.out_channels)}) must match number of irreps ({len(self.proj_calc.num_irreps)})"
-        self.L = self.proj_calc.L
+        assert len(self.out_channels) == self.proj_calc.num_irreps, f"Number of output channels ({len(self.out_channels)}) must match number of irreps ({len(self.proj_calc.num_irreps)})"
+        self.L = self.proj_calc.num_elements
         self.irrep_dims = self.proj_calc.irrep_dims
         self.group = self.proj_calc.group
 
@@ -111,6 +111,11 @@ class EquivariantPatchEmbed(nn.Module):
             # xavier uniform for now, we should change this later
             nn.init.xavier_uniform_(coeff)
 
+    def get_projections(self):
+        filts = self.proj_calc(self.coefficients)
+        # each entry has shape (Lpatch, C*Ci, di) -> (Lpatch*C, Ci*di)
+        return [filt.view(self.L*self.in_channels, self.out_channels[i]*self.irrep_dims[i]) for i, filt in enumerate(filts)]
+
     def forward(self, x: torch.Tensor) -> List[torch.Tensor]:
         """
         Args:
@@ -129,7 +134,7 @@ class EquivariantPatchEmbed(nn.Module):
         x = x.flatten(-2) # (*, Lpatch*C)
 
         # each entry has shape (Lpatch, C*Ci, di) -> (Lpatch*C, Ci*di)
-        filts = self.proj_calc(self.coefficients).view(self.L*self.in_channels, self.out_channels[i]*self.irrep_dims[i])
+        filts = self.get_projections()
 
         for i in range(self.proj_calc.num_irreps):
             with torch.cuda.stream(self.streams[i]):
