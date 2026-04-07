@@ -4,8 +4,8 @@
 `equivit` is a library based on PyTorch for working with equivariant vision transformers.
 It provides implementations of group-equivariant versions of ViT layers that
 are not specific to the choice of symmetry group, generalizing previous works on
-[$\mathbb{Z}_2$-equivariant ViTs](https://github.com/georg-bn/flopping-for-flops) and 
-[$D_4$-equivariant ViTs](https://github.com/davnords/octic-vits) to arbitrary groups. 
+$\mathbb{Z}_2$-equivariant ViTs ([link](https://github.com/georg-bn/flopping-for-flops)) and 
+$D_4$-equivariant ViTs ([link](https://github.com/davnords/octic-vits)) to arbitrary groups. 
 
 
 
