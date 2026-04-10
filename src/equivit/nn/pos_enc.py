@@ -27,7 +27,6 @@ class EquivariantPositionalEncoding(nn.Module):
         self,  
         lattice: Lattice, 
         dims: List[int],
-        streams: List[torch.cuda.Stream]=None
     ):
         """
         Args:
@@ -48,12 +47,12 @@ class EquivariantPositionalEncoding(nn.Module):
                 for i in range(self.proj_calc.num_irreps)]
         )
 
-        if streams is None:
-            self.streams = [None for _ in range(self.proj_calc.num_irreps)]
-            self.has_streams = False
-        else:
-            self.streams = streams
-            self.has_streams = True
+        # if streams is None:
+        #     self.streams = [None for _ in range(self.proj_calc.num_irreps)]
+        #     self.has_streams = False
+        # else:
+        #     self.streams = streams
+        #     self.has_streams = True
 
         self.reset_parameters()
 
@@ -73,8 +72,8 @@ class EquivariantPositionalEncoding(nn.Module):
         pos_enc = self.proj_calc(self.coefficients)
 
         for i in range(self.proj_calc.num_irreps):
-            with torch.cuda.stream(self.streams[i]):
-                x[i] = x[i] + pos_enc[i] # (*, L, Ci, di)
+            # with torch.cuda.stream(self.streams[i]):
+            x[i] = x[i] + pos_enc[i] # (*, L, Ci, di)
 
         return x
 
@@ -95,7 +94,6 @@ class EquivariantInducedPositionalEncoding(nn.Module):
         representatives: List[GroupElement],
         basepoints: List[int],
         dims: List[int],
-        streams: List[torch.cuda.Stream]=None
     ):
         super().__init__()
         self.dims = dims 
@@ -105,7 +103,6 @@ class EquivariantInducedPositionalEncoding(nn.Module):
                             subgroup_args=subgroup_args,
                             representatives=representatives,
                             basepoints=basepoints,
-                            streams=streams
             )
 
         assert len(self.dims) == len(self.proj_calc.num_irreps), f"Number of dimensions ({len(self.dims)}) must match number of irreps ({len(self.proj_calc.num_irreps)})"
@@ -117,12 +114,12 @@ class EquivariantInducedPositionalEncoding(nn.Module):
                 for i in range(self.proj_calc.num_irreps)]
         )
 
-        if streams is None:
-            self.streams = [None for _ in range(self.proj_calc.num_irreps)]
-            self.has_streams = False
-        else:
-            self.streams = streams
-            self.has_streams = True
+        # if streams is None:
+        #     self.streams = [None for _ in range(self.proj_calc.num_irreps)]
+        #     self.has_streams = False
+        # else:
+        #     self.streams = streams
+        #     self.has_streams = True
 
         self.reset_parameters()
 
@@ -142,8 +139,8 @@ class EquivariantInducedPositionalEncoding(nn.Module):
         pos_enc = self.proj_calc(self.coefficients)
 
         for i in range(self.proj_calc.num_irreps):
-            with torch.cuda.stream(self.streams[i]):
-                x[i] = x[i] + pos_enc[i] # (*, L, Ci, di)
+            # with torch.cuda.stream(self.streams[i]):
+            x[i] = x[i] + pos_enc[i] # (*, L, Ci, di)
 
         return x
    

@@ -13,6 +13,7 @@ class EquivariantLinear(nn.Module):
     It's just a collection of independent linear layers.
 
     Bias can be optionally added to the trivial representation (the first irrep).
+    TODO: take care of complex-type irreps
     """
     def __init__(self,
         dims_in: List[int], dims_out: List[int], 

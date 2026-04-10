@@ -65,7 +65,7 @@ class EquivariantPatchEmbed(nn.Module):
         in_channels: int, 
         out_channels: List[int],
         subgroup_args: tuple,
-        streams: List[torch.cuda.Stream]=None
+        # streams: List[torch.cuda.Stream]=None
     ):
         """
         Args:
@@ -82,7 +82,7 @@ class EquivariantPatchEmbed(nn.Module):
         self.proj_calc = GroupActionIrrepProjectionCalculator(
             patch_lattice.action.pullback(patch_lattice.symmetry_group.subgroup(*subgroup_args))
         )
-        assert len(self.out_channels) == self.proj_calc.num_irreps, f"Number of output channels ({len(self.out_channels)}) must match number of irreps ({len(self.proj_calc.num_irreps)})"
+        assert len(self.out_channels) == self.proj_calc.num_irreps, f"Number of output channels ({len(self.out_channels)}) must match number of irreps ({self.proj_calc.num_irreps})"
         self.L = self.proj_calc.num_elements
         self.irrep_dims = self.proj_calc.irrep_dims
         self.group = self.proj_calc.group
@@ -96,12 +96,12 @@ class EquivariantPatchEmbed(nn.Module):
 
         # Ideally we want to parallelize the computation for different irreps
         # using different CUDA streams
-        if streams is None:
-            self.streams = [None for _ in range(self.proj_calc.num_irreps)]
-            self.has_streams = False
-        else:
-            self.streams = streams
-            self.has_streams = True
+        # if streams is None:
+        #     self.streams = [None for _ in range(self.proj_calc.num_irreps)]
+        #     self.has_streams = False
+        # else:
+        #     self.streams = streams
+        #     self.has_streams = True
 
         self.reset_parameters()
 
@@ -137,8 +137,8 @@ class EquivariantPatchEmbed(nn.Module):
         filts = self.get_projections()
 
         for i in range(self.proj_calc.num_irreps):
-            with torch.cuda.stream(self.streams[i]):
-                outs[i] = (x @ filts[i]).unflatten(-1, (self.out_channels[i], self.irrep_dims[i])) # (*, Ci, di)
+            # with torch.cuda.stream(self.streams[i]):
+            outs[i] = (x @ filts[i]).unflatten(-1, (self.out_channels[i], self.irrep_dims[i])) # (*, Ci, di)
         return outs
 
 

@@ -29,8 +29,7 @@ class BasisHandler(nn.Module):
     def __init__(
         self, 
         irrep_dims: List[int],
-        use_sparse: bool = True, 
-        streams: Optional[List[torch.cuda.Stream]] = None
+        use_sparse: bool = True 
     ):
         super().__init__()
         self.use_sparse = use_sparse
@@ -54,11 +53,6 @@ class BasisHandler(nn.Module):
         self.num_irrep_copies = [len(basis_vectors) for basis_vectors in basis_vectors_list]
 
         self.setup_basis_tensors(basis_vectors_list, use_sparse=use_sparse)
-
-        if streams is None:
-            self.streams = [None for _ in range(self.num_irreps)]
-        else:
-            self.streams = streams
 
     def get_basis_vectors_list(self):
         raise NotImplementedError("Subclasses should implement this method to return the list of basis vectors for each irrep.")
@@ -107,21 +101,21 @@ class BasisHandler(nn.Module):
         if self.use_sparse:
             for i in range(self.num_irreps):
                 C = coefficients[i].shape[1]
-                with torch.cuda.stream(self.streams[i]):
-                    filt = torch.sparse_coo_tensor(
-                        getattr(self, f'proj_indices{i}').flatten().unsqueeze(0),  # (1, n_copies*max_l)
-                        (coefficients[i].unsqueeze(-2).unsqueeze(-1) * getattr(self, f'proj_values{i}')).flatten(0,1), # (n_copies*max_l, Ci, d)
-                        size=(self.num_elements, C, self.irrep_dims[i])
-                    ).to_dense() # (Lpatch, Ci, d)
-                    filts[i] = filt
+                # with torch.cuda.stream(self.streams[i]):
+                filt = torch.sparse_coo_tensor(
+                    getattr(self, f'proj_indices{i}').flatten().unsqueeze(0),  # (1, n_copies*max_l)
+                    (coefficients[i].unsqueeze(-2).unsqueeze(-1) * getattr(self, f'proj_values{i}')).flatten(0,1), # (n_copies*max_l, Ci, d)
+                    size=(self.num_elements, C, self.irrep_dims[i])
+                ).to_dense() # (Lpatch, Ci, d)
+                filts[i] = filt
         else:
             for i in range(self.num_irreps):
-                with torch.cuda.stream(self.streams[i]):
-                    filt = torch.matmul(coefficients[i].t(), getattr(self, f'projections{i}').flatten(1,2))
-                    # (Ci, Lpatch*d) -> (Ci, Lpatch, d)
-                    filt = filt.unflatten(1, (self.num_elements, self.irrep_dims[i]))
-                    filt = filt.permute(1,0,2) # (Lpatch, Ci, d)
-                    filts[i] = filt
+                # with torch.cuda.stream(self.streams[i]):
+                filt = torch.matmul(coefficients[i].t(), getattr(self, f'projections{i}').flatten(1,2))
+                # (Ci, Lpatch*d) -> (Ci, Lpatch, d)
+                filt = filt.unflatten(1, (self.num_elements, self.irrep_dims[i]))
+                filt = filt.permute(1,0,2) # (Lpatch, Ci, d)
+                filts[i] = filt
         return filts
 
 
@@ -136,13 +130,12 @@ class GroupActionIrrepProjectionCalculator(BasisHandler):
         self, 
         action: GroupAction, 
         use_sparse: bool = True,
-        streams: Optional[List[torch.cuda.Stream]] = None
     ):
         self.action = action
         self.group = action.group
         irreps = self.action.group.real_irreps()
         super().__init__([irrep.dim for irrep in irreps.values()],
-                         use_sparse=use_sparse, streams=streams)
+                         use_sparse=use_sparse)
 
     def get_basis_vectors_list(self):
         self.projection_bases = decompose_set_action(self.action)
@@ -168,8 +161,7 @@ class InducedRepresentationInvariantSubspaceCalculator(BasisHandler):
         subgroup_args: tuple,
         representatives: List[GroupElement],
         basepoints: List[int],
-        use_sparse: bool = True,
-        streams: Optional[List[torch.cuda.Stream]] = None
+        use_sparse: bool = True
     ):
         self.action = action
         self.subgroup_args = subgroup_args
@@ -179,7 +171,7 @@ class InducedRepresentationInvariantSubspaceCalculator(BasisHandler):
         self.basepoints = basepoints
 
         irreps = self.subgroup.real_irreps()
-        super().__init__([irrep.dim for irrep in irreps.values()], use_sparse, streams)
+        super().__init__([irrep.dim for irrep in irreps.values()], use_sparse)
 
     def get_basis_vectors_list(self):
         irreps = self.subgroup.real_irreps()
