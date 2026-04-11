@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 from typing import List, Optional, Callable
 
-from ..geometry import GroupAction, decompose_set_action, Group
+from ..geometry import GroupAction, decompose_set_action, Group, IrrepType
 
 
 
@@ -102,14 +102,27 @@ class Fourier(nn.Module):
 
     Note: this module should be used for small X (say |X| < 100), since the Fourier transform is
     implemented as a dense matrix multiplication.
+
+    Note: this module assumes that all real irreps of the symmetry group (action.group) of complex type have 
+    matrices that commute with the standard complex structure.
     """
     def __init__(self, action: GroupAction):
         super().__init__()
         self.action = action
+
+        irreps = action.group.real_irreps()
+        for irrep in irreps.values():
+            assert irrep.rep_type is not IrrepType.QUATERNIONIC, "Quaternionic-type irreps are not supported yet."
+        self.dtypes = [torch.float32 if irrep.rep_type is IrrepType.REAL else torch.complex64 for irrep in irreps.values()]
+
  
         projections = decompose_set_action(action)
         self.irrep_multiplicities = [len(p) for p in projections.values()]
-        self.irrep_dims = [irrep.dim for irrep in action.group.real_irreps().values()]
+
+        self.irrep_dims = [irrep.dim for irrep in irreps.values()]
+        self.irrep_complex_dims = [irrep.dim if irrep.rep_type is IrrepType.REAL else irrep.dim//2 for irrep in irreps.values()]
+
+
         assert len(self.irrep_multiplicities) == len(self.irrep_dims), "Number of irreps in the decomposition does not match the number of irreps of the group. Something went wrong."
         self.split_sizes = [m*d for m, d in zip(self.irrep_multiplicities, self.irrep_dims)]
     
@@ -126,22 +139,29 @@ class Fourier(nn.Module):
         """
         real space to frequency (or momentum or irrep) space
         x: (*, |X|)
-        return: list of tensors, each of shape (*, Ri, di), where Ri is the multiplicity of the i-th irrep and di is the dimension of the i-th irrep.
+        return: list of tensors, each of shape (*, Ri, di), where Ri is the multiplicity of the i-th irrep 
+        and di is the complex dimension of the i-th irrep.
         """
         y = torch.matmul(x, self.matrix)
         chunks = torch.split(y, self.split_sizes, dim=-1)
-        return [chunk.unflatten(-1, (m, d)) 
-                for chunk, m, d in zip(chunks, self.irrep_multiplicities, self.irrep_dims)
+        return [chunk.view(dtype).view(*chunk.shape[:-1], m, d)
+                for chunk, dtype, m, d in zip(chunks, self.dtypes, self.irrep_multiplicities, self.irrep_complex_dims)
                 ]
 
     def inverse_transform(self, x: List[torch.Tensor]) -> torch.Tensor:
         """
         frequency space to real space
         x: list of tensors, each of shape (*, Ri, di), where Ri is the multiplicity of the i-th irrep and di is the dimension of the i-th irrep.
+
+        Note: 
+        - if the i-th irrep is of real type, then x[i] should be of real dtype 
+        - if the i-th irrep is of complex type, then x[i] should be of complex dtype
+        - di is the complex dimension of the i-th irrep
         """
         return torch.matmul(torch.cat(
-            [z.flatten(-2, -1) for z in x], dim=-1),
-            self.matrix.t()
+                [z.view(torch.float32).flatten(-2, -1) for z in x], 
+                # note: if z is complex, then z.view(torch.float32) will have shape (*, Ri, di*2)
+                dim=-1),
+                self.matrix.t()
         )
-
 

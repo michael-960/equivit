@@ -22,6 +22,8 @@ class EquivariantPositionalEncoding(nn.Module):
 
     The positional encoding vector itself is invariant under the G-action, i.e.
     f(g.x) = rho(g) f(g^{-1}.x) for all g in G, x in X.
+
+    TODO: complex-type irreps
     """
     def __init__(
         self,  

@@ -6,13 +6,14 @@ import numpy as np
 from typing import Tuple, List, Optional
 
 
-from ..geometry import GroupAction, GroupRepresentation, GroupElement
+
+from ..geometry import GroupAction, GroupRepresentation, GroupElement, IrrepType
 
 
-class BasisHandler(nn.Module):
+class IrrepBasisHandler(nn.Module):
     """
     This module does the following:
-    It stores a list of P tensors, which we will call basis tensors (although they may not be linearly independent), 
+    It stores a list of P tensors, which we will call basis tensors (although they need not be linearly independent), 
     each of shape (ni, L, di), where i = 0, ..., P-1.
 
     The forward() method takes as input a list of P tensors, each of shape 
@@ -22,19 +23,22 @@ class BasisHandler(nn.Module):
 
     The specific basis tensors should be specified by subclasses.
 
-    It often happesn that the basis tesnors are sparse in the L dimension.
+    It often happens that the basis tensors are sparse in the L dimension.
     The use_sparse flag makes it so that the basis tensors are stored as sparse
     tensors, which can save memory but may be slower.
     """
     def __init__(
         self, 
         irrep_dims: List[int],
+        is_complex: List[bool],
         use_sparse: bool = True 
     ):
         super().__init__()
         self.use_sparse = use_sparse
 
         self.irrep_dims = irrep_dims
+
+        self.dtypes = [torch.complex64 if is_cplx else torch.float32 for is_cplx in is_complex]
 
         basis_vectors_list = self.get_basis_vectors_list()
 
@@ -55,11 +59,15 @@ class BasisHandler(nn.Module):
         self.setup_basis_tensors(basis_vectors_list, use_sparse=use_sparse)
 
     def get_basis_vectors_list(self):
+        """
+        This method should be implemented by subclasses to return a list of lists of sparse COO tensors,
+        each of shape (L, di).
+        """
         raise NotImplementedError("Subclasses should implement this method to return the list of basis vectors for each irrep.")
 
     def setup_basis_tensors(self, basis_vectors_list: List[list], use_sparse: bool):
         """
-        basis_vectors_list: list of lists of sparse COO tensors, each of shape (|X|, irrep_dim), 
+        basis_vectors_list: list of lists of sparse COO tensors, each of shape (L, di), 
         where the outer list is over irreps.
         """
         if use_sparse:
@@ -76,7 +84,7 @@ class BasisHandler(nn.Module):
                                     p.indices(), torch.zeros((1, n_pad), dtype=torch.long)
                                 ], dim=1))
                     _vals.append(torch.cat([
-                        p.values(), torch.zeros((n_pad,d), dtype=p.values().dtype)], dim=0).to(torch.float32)
+                        p.values(), torch.zeros((n_pad,d), dtype=p.values().dtype)], dim=0).to(self.dtypes[i])
                         )
                 # (n_copies, max_l)  
                 self.register_buffer(f'proj_indices{i}', torch.cat(_inds, dim=0))
@@ -86,7 +94,7 @@ class BasisHandler(nn.Module):
             # less memory efficient but potentially faster (and simpler)
             for i, basis_vectors in enumerate(basis_vectors_list):
                 # each entry in list has shape (n_copies, num_elements, d)
-                self.register_buffer(f'projections{i}', torch.stack([p.to_dense() for p in basis_vectors], dim=0))
+                self.register_buffer(f'projections{i}', torch.stack([p.to_dense() for p in basis_vectors], dim=0).to(self.dtypes[i]))
 
 
     def forward(self, coefficients: List[torch.Tensor]) -> List[torch.Tensor]:
@@ -110,17 +118,22 @@ class BasisHandler(nn.Module):
                 filts[i] = filt
         else:
             for i in range(self.num_irreps):
-                # with torch.cuda.stream(self.streams[i]):
-                filt = torch.matmul(coefficients[i].t(), getattr(self, f'projections{i}').flatten(1,2))
-                # (Ci, Lpatch*d) -> (Ci, Lpatch, d)
-                filt = filt.unflatten(1, (self.num_elements, self.irrep_dims[i]))
-                filt = filt.permute(1,0,2) # (Lpatch, Ci, d)
+                # coefficients[i] has shape (ni, Ci)
+                # getattr(self, f'projections{i}') has shape (ni, L, di)
+
+                # coefficients[i].T has shape (Ci, ni)
+                # getattr(self, f'projections{i}').permute(1,0,2) has shape (L, ni, di)
+                # filt has shape (L, Ci, di)
+                # also, filt should be contiguous (I hope)
+
+                filt = coefficients[i].T @ getattr(self, f'projections{i}').permute(1,0,2)
+
                 filts[i] = filt
         return filts
 
 
 
-class GroupActionIrrepProjectionCalculator(BasisHandler):
+class GroupActionIrrepProjectionCalculator(IrrepBasisHandler):
     """
     Given an action of a group G on a set X, this module calculates the
     projections onto the isotypic components of the induced representation of G
@@ -133,18 +146,43 @@ class GroupActionIrrepProjectionCalculator(BasisHandler):
     ):
         self.action = action
         self.group = action.group
-        irreps = self.action.group.real_irreps()
-        super().__init__([irrep.dim for irrep in irreps.values()],
+        self.irreps = self.action.group.real_irreps()
+
+        self.irrep_complex_dims = [irrep.dim if irrep.rep_type is IrrepType.REAL else irrep.dim//2
+                               for irrep in self.irreps.values()]
+
+        # irrep_real_dims = [irrep.dim for irrep in self.irreps.values()]
+
+
+        super().__init__(self.irrep_complex_dims,
+                         is_complex=[irrep.rep_type is IrrepType.COMPLEX for irrep in self.irreps.values()], 
                          use_sparse=use_sparse)
 
     def get_basis_vectors_list(self):
-        self.projection_bases = decompose_set_action(self.action)
+        _dtypes = [torch.float64 if irrep.rep_type is IrrepType.REAL else torch.complex128
+                       for irrep in self.irreps.values()]
 
-        return list(self.projection_bases.values())
+        projection_bases = []
+        
+        for i, projs in enumerate(decompose_set_action(self.action).values()):
+            _ = []
+            for p in projs:
+                _indices = p.indices()
+                _values = p.values()
+                L, d = p.shape
+                new_p = torch.sparse_coo_tensor(indices=_indices, 
+                                                 values=_values.view(_dtypes[i]), 
+                                                 size=(L, self.irrep_complex_dims[i]))
+                _.append(new_p.coalesce())
+            projection_bases.append(_)
+
+        # a list of lists of sparse COO tensors, each of shape (|X|, irrep_dim)
+        # the outer list is over irreps
+        return list(projection_bases)
 
 
 
-class InducedRepresentationInvariantSubspaceCalculator(BasisHandler):
+class InducedRepresentationInvariantSubspaceCalculator(IrrepBasisHandler):
     """
     Given:
         - an action of a group G on a set X
@@ -154,6 +192,8 @@ class InducedRepresentationInvariantSubspaceCalculator(BasisHandler):
 
     this module calculates the space C(G, V) of invariant functions G -> V for each irrep V of H, where the action 
     of G on C(G, V) is induced from that of H on V.
+
+    TODO: complex type irreps
     """
     def __init__(
         self, 

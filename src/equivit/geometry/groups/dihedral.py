@@ -1,10 +1,12 @@
 from enum import Enum
-from typing import Tuple, Optional, List, Literal
+from typing import Tuple, Optional, List, Literal, Dict
 import numpy as np
 
-from .base import Group, GroupElement, CachedGroupMeta, GroupHomomorphism
-from .action import GroupRepresentation, rotation_matrix, ComplexStructure, GroupAction
+from .base import Group, GroupElement, CachedGroupMeta, GroupHomomorphism, rotation_matrix
+from .action import GroupAction
+from .representations import GroupRepresentation, IrrepType, RealIrrep, ComplexStructure
 from .cyclic import CyclicGroup
+
 
 from ...registry import GROUP
 
@@ -34,34 +36,6 @@ class DihedralGroup(Group, metaclass=CachedGroupMeta):
 
     def __len__(self):
         return 2 * self.n
-
-    def reduce_word(self, word: str) -> str:
-        # Reduce the word by applying the relations of D6
-        # r^n = e, t^2 = e, tr = rt^-1
-        # This is a non-trivial task and may require multiple passes to fully reduce the word
-        # For simplicity, we will implement a basic reduction that handles some cases
-        # Note: this method is not used anywhere else in the code, 
-        # TODO: remove this
-
-        assert set(word).issubset({'r', 't'}), "word can only contain 'r' and 't'"
-
-        n = self.n
-
-        while 'rt' in word:
-            word = word.replace('rt', 't' + 'r' * (n - 1))
-
-        # Handle r^6 = e
-        while 'r' * n in word:
-            word = word.replace('r' * n, '')
-
-        # Handle t^2 = e
-        while 'tt' in word:
-            word = word.replace('tt', '')
-
-        if word in self._alias_element_dict.keys():
-            return word
-
-        return self.reduce_word(word)
 
     def from_value(self, value: Tuple[int,int]):
         if value in self._value_element_dict.keys():
@@ -135,7 +109,11 @@ class DihedralGroup(Group, metaclass=CachedGroupMeta):
         s = 't'*num_t + 'r'*num_r
         return f'D{self.n}[{s}]'
 
-    def real_irreps(self):
+    def complex_irreps(self):
+        # irreps = self.real_irreps()
+        raise NotImplementedError()
+
+    def real_irreps(self) -> Dict[str, RealIrrep]:
         """
         Returns the real irreducible representations of the dihedral group.
         For dihedral groups, the real irreps are also complex irreps.
@@ -144,19 +122,26 @@ class DihedralGroup(Group, metaclass=CachedGroupMeta):
             return self._real_irreps
 
         irreps = dict()
-        irreps['A1'] = dihedral_group_representation(self, [[1]], [[1]])
-        irreps['A2'] = dihedral_group_representation(self, [[1]], [[-1]])
 
-        if self.n % 2 == 0:
-            irreps['B1'] = dihedral_group_representation(self, [[-1]], [[1]])
-            irreps['B2'] = dihedral_group_representation(self, [[-1]], [[-1]])
+        irreps['A1'] = RealIrrep.from_rep(dihedral_group_representation(self, [[1]], [[1]]), 
+                                          name='A1', rep_type=IrrepType.REAL)
+
+        irreps['A2'] = RealIrrep.from_rep(dihedral_group_representation(self, [[1]], [[-1]]), 
+                                          name='A2', rep_type=IrrepType.REAL)
+
+        if self.n % 2 == 0: 
+            irreps['B1'] = RealIrrep.from_rep(dihedral_group_representation(self, [[-1]], [[1]]), name='B1', rep_type=IrrepType.REAL)
+
+            irreps['B2'] = RealIrrep.from_rep(dihedral_group_representation(self, [[-1]], [[-1]]), name='B2', rep_type=IrrepType.REAL)
             for k in range(1, self.n//2):
                 theta = 2 * np.pi * k / self.n
-                irreps[f'E{k}'] = dihedral_group_representation(self, rotation_matrix(theta), [[1,0], [0,-1]])
+                irreps[f'E{k}'] = RealIrrep.from_rep(dihedral_group_representation(self, rotation_matrix(theta), [[1,0], [0,-1]]),
+                                                     name=f'E{k}', rep_type=IrrepType.REAL)
         else:
             for k in range(1, (self.n+1)//2):
                 theta = 2 * np.pi * k / self.n
-                irreps[f'E{k}'] = dihedral_group_representation(self, rotation_matrix(theta), [[1,0], [0,-1]])
+                irreps[f'E{k}'] = RealIrrep.from_rep(dihedral_group_representation(self, rotation_matrix(theta), [[1,0], [0,-1]]),
+                                                     name=f'E{k}', rep_type=IrrepType.REAL)
 
         self._real_irreps = irreps
         return self._real_irreps

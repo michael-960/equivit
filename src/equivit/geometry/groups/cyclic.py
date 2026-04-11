@@ -1,8 +1,12 @@
 import numpy as np
-from .base import Group, GroupElement, CachedGroupMeta, GroupHomomorphism
-from .action import rotation_matrix, GroupRepresentation, StandardComplexStructure, ComplexStructure, GroupAction
-from typing import Optional, List
+from typing import Optional, List, Dict
+from .base import Group, GroupElement, CachedGroupMeta, GroupHomomorphism, rotation_matrix
+from .action import GroupAction
+
 from ...registry import GROUP
+from .representations.base import GroupRepresentation, IrrepType, RealIrrep
+
+from .representations import GroupRepresentation, IrrepType, RealIrrep, ComplexIrrep, ComplexStructure, StandardComplexStructure
 
 
 # @GROUP.register('CyclicGroup')
@@ -63,7 +67,7 @@ class CyclicGroup(Group, metaclass=CachedGroupMeta):
         # cyclic groups are abelian, so each element forms its own conjugacy class
         return [[self.from_value(i)] for i in range(self.n)]
 
-    def real_irreps(self):
+    def real_irreps(self) -> Dict[str, RealIrrep]:
         """
         Returns the real irreducible representations of the cyclic group.
         For cyclic groups, some real irreps are not complex irreps.
@@ -73,15 +77,15 @@ class CyclicGroup(Group, metaclass=CachedGroupMeta):
 
         irreps = dict()
 
-        irreps['A'] = cyclic_group_representation(self, [[1]])
+        irreps['A'] = RealIrrep.from_rep(cyclic_group_representation(self, [[1]]), name='A', rep_type=IrrepType.REAL)
 
         if self.n % 2 == 0:
-            irreps['B'] = cyclic_group_representation(self, [[-1]])
+            irreps['B'] = RealIrrep.from_rep(cyclic_group_representation(self, [[-1]]), name='B', rep_type=IrrepType.REAL)
 
         for k in range(1, (self.n+1)//2):
             theta = 2 * np.pi * k / self.n
-            irreps[f'E{k}'] = cyclic_group_representation(
-                self, rotation_matrix(theta), complex_structure=StandardComplexStructure(1))
+            irreps[f'E{k}'] = RealIrrep.from_rep(cyclic_group_representation(
+                self, rotation_matrix(theta), complex_structure=StandardComplexStructure(1)), name=f'E{k}', rep_type=IrrepType.COMPLEX)
 
         self._real_irreps = irreps
         return self._real_irreps

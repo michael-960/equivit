@@ -3,8 +3,9 @@ import torch
 from typing import Type, List, Dict
 
 from .base import Group
-from .action import GroupRepresentation, GroupAction, GroupElement
+from .action import GroupAction, GroupElement
 
+from .representations import GroupRepresentation
 
 def find_irrep_components(
     rep: GroupRepresentation, 

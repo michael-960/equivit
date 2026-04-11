@@ -1,5 +1,5 @@
 from .pos_enc import EquivariantPositionalEncoding, EquivariantInducedPositionalEncoding
-from .patch_embed import EquivariantPatchEmbed, Patchify, SquarePatchify
+from .patch_embed import EquivariantPatchEmbed
 from .nonlinear import Fourier, EquivariantNonlinear
 from .linear import EquivariantLinear
 

@@ -1,4 +1,3 @@
-
 from ..geometry import Honeycomb, Triangle, decompose_set_action
 import torch.nn as nn
 import torch
@@ -6,65 +5,32 @@ import torch.nn.functional as F
 import numpy as np
 from typing import Tuple, List
 
-from ..geometry import Group, Lattice, GroupAction
+from ..geometry import Group, Lattice, GroupAction, IrrepType
 
 from .lattice_irrep_handler import GroupActionIrrepProjectionCalculator
 
 
-class Patchify(nn.Module):
-    patch_inds: torch.Tensor
-    def __init__(self):
-        super().__init__()
-        self._setup_patch_indices()
 
-    def _setup_patch_indices(self):
-        raise NotImplementedError("This method should be implemented by subclasses to set up the patch indices for the specific lattice structure of the patches.")
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        # x should have shape (*, L, C)
-
-        # assert H % self.patch_size == 0 and W % self.patch_size == 0, f"Image size ({H}x{W}) must be divisible by patch size ({self.patch_size})"
-        # x = x.unfold(2, self.patch_size, self.patch_size).unfold(3, self.patch_size, self.patch_size) # (B, C, H//P, W//P, P, P)
-        # x = x.contiguous().view(B, C, -1, self.patch_size*self.patch_size) # (B, C, num_patches, patch_size*patch_size)
-
-        x_unfolded = x[...,self.patch_inds,:] # (*, num_patches, Lpatch, C)
-        return x_unfolded
-
-
-class SquarePatchify(Patchify):
-    def __init__(self, img_size: int, patch_size: int):
-        self.img_size = img_size
-        self.patch_size = patch_size
-        super().__init__()
-
-    def _setup_patch_indices(self):
-        L = self.img_size**2
-        P = self.patch_size
-
-        patch_inds = []
-
-        for i in range(0, self.img_size, P):
-            for j in range(0, self.img_size, P):
-                _inds = []
-                for di in range(P):
-                    for dj in range(P):
-                        _inds.append((i+di)*self.img_size + (j+dj))
-                patch_inds.append(_inds)
-        self.patch_inds = torch.tensor(patch_inds, dtype=torch.long)
-
-
+# Patchembed can be decomposed into two steps:
+# (*, Lpatch, C) -> ..., (*, C, Mi, di), ... -> ..., (*, Ci, di), ...
+# where the Mi are the multiplicities of the irreps in the decomposition of the
+# patch action, and the Ci are the desired output channels for each irrep. 
+# note: if the Mi are large, these two steps should not be done independently
 
 
 class EquivariantPatchEmbed(nn.Module):
     """
     Patch embedding layer that respects the symmetries of a lattice.
     We use the irreps of the symmetry group to project the input features.
+
+    TODO: complex-type irreps
     """
     def __init__(self, 
-        patch_lattice: Lattice, 
+        action: GroupAction,
         in_channels: int, 
         out_channels: List[int],
         subgroup_args: tuple,
+        use_sparse: bool = True,
         # streams: List[torch.cuda.Stream]=None
     ):
         """
@@ -76,32 +42,35 @@ class EquivariantPatchEmbed(nn.Module):
                 See Group.subgroup() for details on how to specify this.
         """
         super().__init__()
+        self.action = action
         self.in_channels = in_channels
         self.out_channels = out_channels
 
         self.proj_calc = GroupActionIrrepProjectionCalculator(
-            patch_lattice.action.pullback(patch_lattice.symmetry_group.subgroup(*subgroup_args))
+            action.pullback(action.group.subgroup(*subgroup_args)),
+            use_sparse=use_sparse
         )
-        assert len(self.out_channels) == self.proj_calc.num_irreps, f"Number of output channels ({len(self.out_channels)}) must match number of irreps ({self.proj_calc.num_irreps})"
+
         self.L = self.proj_calc.num_elements
-        self.irrep_dims = self.proj_calc.irrep_dims
-        self.group = self.proj_calc.group
+        subgroup = self.action.group.subgroup(*subgroup_args).source
+        irreps = subgroup.real_irreps().values()
+        for irrep in irreps:
+            if irrep.rep_type is IrrepType.QUATERNIONIC:
+                raise NotImplementedError("Quaternion-type irreps are not supported yet.")
+
+        self.irrep_dims = [irrep.dim if irrep.rep_type is IrrepType.REAL else irrep.dim//2 for irrep in irreps]
+        self.dtypes = [torch.float32 if irrep.rep_type is IrrepType.REAL else torch.complex64
+                       for irrep in irreps]
+        self.is_complex = [irrep.rep_type is IrrepType.COMPLEX for irrep in irreps]
+
+        assert len(self.out_channels) == self.proj_calc.num_irreps, f"Number of output channels ({len(self.out_channels)}) must match number of irreps ({self.proj_calc.num_irreps})"
 
         self.coefficients = nn.ParameterList(
             [nn.Parameter(
-                torch.zeros((self.proj_calc.num_irrep_copies[i], in_channels*out_channels[i]))
+                torch.zeros((self.proj_calc.num_irrep_copies[i], in_channels*out_channels[i]), dtype=self.dtypes[i])
             ) 
                 for i in range(self.proj_calc.num_irreps)]
         )
-
-        # Ideally we want to parallelize the computation for different irreps
-        # using different CUDA streams
-        # if streams is None:
-        #     self.streams = [None for _ in range(self.proj_calc.num_irreps)]
-        #     self.has_streams = False
-        # else:
-        #     self.streams = streams
-        #     self.has_streams = True
 
         self.reset_parameters()
 
@@ -114,6 +83,7 @@ class EquivariantPatchEmbed(nn.Module):
     def get_projections(self):
         filts = self.proj_calc(self.coefficients)
         # each entry has shape (Lpatch, C*Ci, di) -> (Lpatch*C, Ci*di)
+        # note: di is the complex dimension of the irrep
         return [filt.view(self.L*self.in_channels, self.out_channels[i]*self.irrep_dims[i]) for i, filt in enumerate(filts)]
 
     def forward(self, x: torch.Tensor) -> List[torch.Tensor]:
@@ -123,22 +93,28 @@ class EquivariantPatchEmbed(nn.Module):
         Returns: 
             a list of tensors, each of shape (*, Ci, di),
             where di is the dimension of each irrep and Ci is the number of output channels for that irrep.
+
+        Note: an independent "patchification" module should be applied to the
+        input before this module to rearrange the input into patches. This
+        allows for more flexibility in the patch structure and the symmetries
+        that can be respected.
         """
-        # x_unfolded = x[...,self.patch_inds]
-
-        # x should already have shape (*, Lpatch, C), where Lpatch is the number of pixels in each patch.
-        # the 'patchification' of the input should be done outside of this module to allow more flexibility in the patch structure.
-
+        # 
         outs = [None for _ in range(self.proj_calc.num_irreps)]
 
         x = x.flatten(-2) # (*, Lpatch*C)
 
-        # each entry has shape (Lpatch, C*Ci, di) -> (Lpatch*C, Ci*di)
+        # each entry has shape (Lpatch*C, Ci*di)
         filts = self.get_projections()
 
+        # Potential optimization possibilities:
+        # 1. separate real and complex indices
+        # 2. collect all filters into a single matrix of shape (Lpatch*C, sum_i Ci*di) and do a single matmul (maybe once for real irreps and once for complex irreps)
         for i in range(self.proj_calc.num_irreps):
-            # with torch.cuda.stream(self.streams[i]):
-            outs[i] = (x @ filts[i]).unflatten(-1, (self.out_channels[i], self.irrep_dims[i])) # (*, Ci, di)
+            if self.is_complex[i]:
+                outs[i] = (x @ filts[i].view(torch.float32)).view(torch.complex64).unflatten(-1, (self.out_channels[i], self.irrep_dims[i])) # (*, Ci, di)
+            else:
+                outs[i] = (x @ filts[i]).unflatten(-1, (self.out_channels[i], self.irrep_dims[i])) # (*, Ci, di)
         return outs
 
 

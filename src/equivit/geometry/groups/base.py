@@ -1,13 +1,11 @@
 from __future__ import annotations
 from enum import Enum
 import numpy as np
-from typing import Generic, TypeVar, Type, Tuple, Dict, Any, Literal, List, Optional, Union, Callable, TYPE_CHECKING
+from typing import Dict, Any, List, Union, Callable, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from .action import GroupAction, GroupRepresentation
-
-
-
+    from .action import GroupAction
+    from .representations import GroupRepresentation, RealIrrep, ComplexIrrep
 
 
 
@@ -76,13 +74,13 @@ class Group:
         dtype = np.complex128 if complex else np.float64
         return GroupRepresentation(self, lambda g: np.array([[1.]], dtype=dtype))
 
-    def complex_irreps(self):
+    def complex_irreps(self) -> Dict[str, ComplexIrrep]:
         """
         Returns the complex irreducible representations of the group.
         """
         raise NotImplementedError("This method should be implemented by subclasses to return the class that contains the complex irreducible representations of the group.")
 
-    def real_irreps(self):
+    def real_irreps(self) -> Dict[str, RealIrrep]:
         raise NotImplementedError("This method should be implemented by subclasses to return the class that contains the irreducible representations of the group.")
 
         # TODO: maybe we can compute the real irreps automatically from the complex irreps
@@ -286,3 +284,11 @@ class CachedGroupMeta(type):
             cls._cache[args] = super().__call__(*args)
 
         return cls._cache[args]
+
+
+
+def rotation_matrix(theta):
+    return np.array([
+        [np.cos(theta), -np.sin(theta)],
+        [np.sin(theta), np.cos(theta)],
+    ])
