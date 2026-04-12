@@ -1,6 +1,6 @@
 import torch
 from typing import List, Optional, Callable
-from ..geometry import Group, IrrepType, GroupElement
+from ..geometry import Group, IrrepType, GroupElement, GroupAction
 
 
 
@@ -65,6 +65,11 @@ def random_irrep_tensors(group: Group, shape, dims: List[int], rng: Optional[tor
         shape: the leading shape of the output tensors (before the channel and irrep dimensions)
         dims: list of number of channels for each irrep
         rng: an optional torch.Generator for reproducibility
+
+    Returns:
+        a list of tensors, each of shape (*shape, Ci, di) for each irrep, where
+        Ci is the number of channels for that irrep and di is the (complex)
+        dimension of that irrep.
     """
     x = []
     irreps = group.real_irreps()
@@ -131,3 +136,78 @@ def equivariance_error_over_group(
         errors_over_group.append(errors)
     return errors_over_group
 
+
+
+def induced_action_on_tensors(
+    action: GroupAction,
+    subgroup_args: tuple,
+    representatives: List[GroupElement],
+    basepoints: List[int],
+    g: GroupElement,
+    x: List[torch.Tensor]
+) -> List[torch.Tensor]:
+    """
+
+    y[i] = rho(h) x[g^{-1}.i] 
+    where h is the element of G such that
+    g * s = s' * h
+
+    TODO: isolate the first four parameters and make a class out of them (pullback bundle?).
+    """
+
+    orbits = action.orbits()
+
+    group = action.group
+    subgroup_incl = group.subgroup(*subgroup_args)
+    subgroup = subgroup_incl.source
+    assert_all_not_quaternionic(subgroup)
+
+    cosets = group.left_cosets(subgroup_incl)
+    fibers = []
+
+    for k in representatives:
+        fiber = []
+        for i, orbit in zip(basepoints, orbits):
+            kx0 = action(k)[orbit[i]]
+            h_orbit = []
+            for h in subgroup:
+                hkx0 = action(subgroup_incl(h))[kx0]
+                h_orbit.append(hkx0)
+            fiber.extend(h_orbit) 
+        fibers.append(fiber)
+
+    coset_inds = {}
+    for i, coset in enumerate(cosets):
+        for k in coset:
+            coset_inds[k] = i
+
+    GtoH = {}
+    for h in subgroup:
+        GtoH[subgroup_incl(h)] = h
+
+    y = []
+
+    for r, irrep in enumerate(subgroup.real_irreps().values()):
+        yr = torch.zeros_like(x[r])
+        dtype = x[r].dtype
+        for i, k in enumerate(representatives):
+            fiber = fibers[i]
+            gfiber = [action(g)[t] for t in fiber]
+        
+            b = representatives[coset_inds[g*k]]
+            h = GtoH[b.inv() * g * k]
+
+            if irrep.rep_type is IrrepType.REAL:
+                assert dtype in [torch.float32, torch.float64], f"Expected real dtype for irrep {irrep.name}, but got {dtype}"
+                yr[gfiber,:,:] = torch.einsum('ij, ...j -> ...i', 
+                                            torch.tensor(irrep(h)).to(torch.float32), 
+                                            x[r][fiber,:,:])
+            else:
+                assert dtype in [torch.complex64, torch.complex128], f"Expected complex dtype for irrep {irrep.name}, but got {dtype}"
+                real_dtype = torch.float32 if dtype == torch.complex64 else torch.float64
+                yr[gfiber,:,:] = torch.einsum('ij,...j -> ...i', torch.tensor(irrep(h)).to(real_dtype),
+                                            x[r][fiber,:,:].view(real_dtype)
+                                            ).contiguous().view(dtype)
+        y.append(yr)
+
+    return y

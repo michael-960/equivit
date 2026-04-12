@@ -4,4 +4,4 @@ from . import nn
 from .registry import GROUP
 
 
-from .nn import act_on_tensors, random_irrep_tensors
+from .nn import act_on_tensors, random_irrep_tensors, induced_action_on_tensors

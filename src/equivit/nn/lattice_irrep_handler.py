@@ -6,6 +6,9 @@ import numpy as np
 from typing import Tuple, List, Optional
 
 
+from .utils import assert_all_not_quaternionic
+
+
 
 from ..geometry import GroupAction, GroupRepresentation, GroupElement, IrrepType
 
@@ -46,6 +49,8 @@ class IrrepBasisHandler(nn.Module):
         assert len(self.irrep_dims) == self.num_irreps, "Length of irrep_dims should match number of irreps (length of basis_vectors_list)."
 
         # deduce num_elements from the basis vectors
+        # num_elements is L
+        # TODO: rename num_elements
         self.num_elements = None
         for basis_vectors in basis_vectors_list:
             if len(basis_vectors) > 0:
@@ -155,6 +160,7 @@ class GroupActionIrrepProjectionCalculator(IrrepBasisHandler):
         action: GroupAction, 
         use_sparse: bool = True,
     ):
+        assert_all_not_quaternionic(action.group)
         self.action = action
         self.group = action.group
         self.irreps = self.action.group.real_irreps()
@@ -218,25 +224,42 @@ class InducedRepresentationInvariantSubspaceCalculator(IrrepBasisHandler):
         self.subgroup_args = subgroup_args
         self.subgroup_incl = self.action.group.subgroup(*subgroup_args)
         self.subgroup = self.subgroup_incl.source
+        assert_all_not_quaternionic(self.subgroup)
+
+        self.irreps = self.subgroup.real_irreps()
+        self.irrep_complex_dims = [irrep.dim if irrep.rep_type is IrrepType.REAL else irrep.dim//2
+                               for irrep in self.irreps.values()]
+
         self.representatives = representatives
         self.basepoints = basepoints
 
-        irreps = self.subgroup.real_irreps()
-        super().__init__([irrep.dim for irrep in irreps.values()], use_sparse)
+        super().__init__(self.irrep_complex_dims,
+                         is_complex=[irrep.rep_type is IrrepType.COMPLEX for irrep in self.irreps.values()], 
+                         use_sparse=use_sparse)
 
     def get_basis_vectors_list(self):
         irreps = self.subgroup.real_irreps()
+        _dtypes = [torch.float64 if irrep.rep_type is IrrepType.REAL else torch.complex128 for irrep in self.irreps.values()]
+
         invariant_vectors = []
 
-        for irrep_name, irrep in irreps.items():
+        for i, irrep in enumerate(irreps.values()):
             # list of sparse COO tensors, each of shape (|X|, irrep_dim)
-            basis_vectors = induce_and_find_invariant_vectors(
+            _basis_vectors = induce_and_find_invariant_vectors(
                 self.action,
                 self.subgroup_args,
                 irrep,
                 self.representatives,
                 self.basepoints
             )
+            basis_vectors = []
+            for p in _basis_vectors:
+                L, d = p.shape
+                new_p = torch.sparse_coo_tensor(indices=p.indices(), 
+                                                 values=p.values().view(_dtypes[i]), 
+                                                 size=(L, self.irrep_complex_dims[i]))
+                basis_vectors.append(new_p.coalesce())
+
             invariant_vectors.append(basis_vectors)
         return invariant_vectors
 

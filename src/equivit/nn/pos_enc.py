@@ -97,29 +97,40 @@ class EquivariantInducedPositionalEncoding(nn.Module):
     """
     def __init__(
         self,  
-        lattice: Lattice, 
+        action: GroupAction, 
         subgroup_args: tuple,
         representatives: List[GroupElement],
         basepoints: List[int],
         dims: List[int],
+        use_sparse: bool = True
     ):
         super().__init__()
         self.dims = dims 
 
         self.proj_calc = InducedRepresentationInvariantSubspaceCalculator(
-                            lattice.action, 
+                            action, 
                             subgroup_args=subgroup_args,
                             representatives=representatives,
                             basepoints=basepoints,
+                            use_sparse=use_sparse
             )
 
-        assert len(self.dims) == len(self.proj_calc.num_irreps), f"Number of dimensions ({len(self.dims)}) must match number of irreps ({len(self.proj_calc.num_irreps)})"
+        subgroup = action.group.subgroup(*subgroup_args).source
+        assert_all_not_quaternionic(subgroup)
+        
+        irreps = subgroup.real_irreps().values()
+
+        self.dtypes = [torch.float32 if irrep.rep_type is IrrepType.REAL else torch.complex64 for irrep in irreps]
+
+        self.num_irreps = len(irreps)
+
+        assert len(self.dims) == self.num_irreps, f"Number of dimensions ({len(self.dims)}) must match number of irreps ({self.num_irreps})"
 
         self.coefficients = nn.ParameterList(
             [nn.Parameter(
-                torch.zeros((self.proj_calc.num_irrep_copies[i], self.dims[i]))
+                torch.zeros((self.proj_calc.num_irrep_copies[i], self.dims[i]), dtype=self.dtypes[i])
             ) 
-                for i in range(self.proj_calc.num_irreps)]
+                for i in range(self.num_irreps)]
         )
 
         self.reset_parameters()
@@ -129,6 +140,9 @@ class EquivariantInducedPositionalEncoding(nn.Module):
             # xavier uniform for now, we should change this later
             nn.init.xavier_uniform_(coeff)
 
+    def get_positional_encodings(self) -> List[torch.Tensor]:
+        return self.proj_calc(self.coefficients)
+
     def forward(self, x: List[torch.Tensor]) -> List[torch.Tensor]:
         """
         Args:
@@ -137,10 +151,9 @@ class EquivariantInducedPositionalEncoding(nn.Module):
             list of tensors, each of shape (*, L, Ci, di) with positional encodings added
         """
         # (L, Ci, di)
-        pos_enc = self.proj_calc(self.coefficients)
+        pos_enc = self.get_positional_encodings()
 
-        for i in range(self.proj_calc.num_irreps):
+        for i in range(self.num_irreps):
             x[i] = x[i] + pos_enc[i] # (*, L, Ci, di)
-
         return x
    

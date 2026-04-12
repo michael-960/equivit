@@ -144,22 +144,22 @@ class GroupAction:
         base_point: int = 0,
     ) -> GroupRepresentation:
         """
-            Consider the following scenario:
+        Consider the following scenario:
             - We have a transitive left G action on a set X.
             - Choose a base point x_0 in X
             - H is a normal subgroup of G that contains Stab(x_0)
                 - Note: since H is normal and the G-action is transitive, H also contains Stab(x) for all x in X.
             - We are given an H-representation (rho, V)
 
-            Given this data, we can construct a G-representation on the 
-            space of functions X -> V.
+        Given this data, we can construct a G-representation on the 
+        space of functions X -> V.
 
-            Special case: if the subgroup is the whole group, then the resulting representation is just 
-            the tensor product of self.to_linear_representation() and the given representation of the group.
+        Special case: if the subgroup is the whole group, then the resulting representation is just 
+        the tensor product of self.to_linear_representation() and the given representation of the group.
 
-            The current implementation is extremely slow, so it should only be used for small |X| and small dim(V).
+        The current implementation is extremely slow, so it should only be used for small |X| and small dim(V).
 
-            TODO: relate this to Ind_K^G(Res_K^H(V)), where K = Stab(x_0)
+        TODO: relate this to Ind_K^G(Res_K^H(V)), where K = Stab(x_0)
         """
         assert self.is_transitive(), "Currently only transitive group actions are supported."    
         assert base_point in range(self.num_elements), f"base_point must be an integer in the range [0, {self.num_elements-1}]" 
