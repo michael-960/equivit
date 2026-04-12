@@ -80,12 +80,14 @@ class EquivariantLayerNorm(nn.Module):
         Args:
             x: list of tesnors, each of shape (*, C_i, d_i)
         """
+        # Note that the following two are the same for a complex64 tensor z:
+        # (1) z.var(dim=-2, correction=0, keepdim=True).sum(dim=-1, keepdim=True)
+        # (2) z.view(torch.float32).var(dim=-2, correction=0, keepdim=True).sum(dim=-1, keepdim=True)
         stds = [
             torch.sqrt(z.var(dim=-2, correction=0, keepdim=True).sum(dim=-1, keepdim=True) + self.eps)
             if self.dims[i] > 0 else 1.
             for i, z in enumerate(x)
         ]        
-
         y = [(z - z.mean(dim=-2, keepdim=True)) / stds[i] for i, z in enumerate(x)]
 
         return self.scaling(y)

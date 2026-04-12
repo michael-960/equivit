@@ -4,6 +4,7 @@ import torch.nn as nn
 from typing import List, Optional, Callable
 
 from ..geometry import GroupAction, decompose_set_action, Group, IrrepType
+from .utils import assert_all_not_quaternionic
 
 
 
@@ -50,7 +51,7 @@ class EquivariantNonlinear(nn.Module):
 
     def forward(self, x: List[torch.Tensor]) -> List[torch.Tensor]:
         """
-        x: list of tensors, each of shape (*, Ci, di), where di is the dimension of the i-th irrep
+        x: list of tensors, each of shape (*, Ci, di), where di is the (complex) dimension of the i-th irrep
         return: list of tensors, each of shape (*, Ci, di)
         """
 
@@ -108,13 +109,14 @@ class Fourier(nn.Module):
     """
     def __init__(self, action: GroupAction):
         super().__init__()
+        assert_all_not_quaternionic(action.group)
+
         self.action = action
 
         irreps = action.group.real_irreps()
-        for irrep in irreps.values():
-            assert irrep.rep_type is not IrrepType.QUATERNIONIC, "Quaternionic-type irreps are not supported yet."
-        self.dtypes = [torch.float32 if irrep.rep_type is IrrepType.REAL else torch.complex64 for irrep in irreps.values()]
 
+        self.dtypes = [torch.float32 if irrep.rep_type is IrrepType.REAL else torch.complex64 for irrep in irreps.values()]
+        self.is_complex = [irrep.rep_type is IrrepType.COMPLEX for irrep in irreps.values()]
  
         projections = decompose_set_action(action)
         self.irrep_multiplicities = [len(p) for p in projections.values()]
@@ -143,10 +145,23 @@ class Fourier(nn.Module):
         and di is the complex dimension of the i-th irrep.
         """
         y = torch.matmul(x, self.matrix)
-        chunks = torch.split(y, self.split_sizes, dim=-1)
-        return [chunk.view(dtype).view(*chunk.shape[:-1], m, d)
-                for chunk, dtype, m, d in zip(chunks, self.dtypes, self.irrep_multiplicities, self.irrep_complex_dims)
-                ]
+        chunks = [chunk.contiguous() 
+                  for chunk in torch.split(y, self.split_sizes, dim=-1)]
+        # return [
+        #         chunk.view(dtype).view(*chunk.shape[:-1], m, d)
+        #         for chunk, dtype, m, d in zip(chunks, self.dtypes, self.irrep_multiplicities, self.irrep_complex_dims)
+        #         ]
+
+        return [
+            (
+                torch.view_as_complex(chunk.view(*chunk.shape[:-1], m, d, 2)) 
+                if m > 0 
+                else torch.empty((*chunk.shape[:-1], 0, d), dtype=torch.complex64)
+            )
+            if is_complex
+            else chunk.view(*chunk.shape[:-1], m, d)
+            for chunk, is_complex, m, d in zip(chunks, self.is_complex, self.irrep_multiplicities, self.irrep_complex_dims)
+        ]
 
     def inverse_transform(self, x: List[torch.Tensor]) -> torch.Tensor:
         """

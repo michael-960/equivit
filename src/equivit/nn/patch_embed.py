@@ -9,6 +9,8 @@ from ..geometry import Group, Lattice, GroupAction, IrrepType
 
 from .lattice_irrep_handler import GroupActionIrrepProjectionCalculator
 
+from .utils import assert_all_not_quaternionic
+
 
 
 # Patchembed can be decomposed into two steps:
@@ -29,34 +31,28 @@ class EquivariantPatchEmbed(nn.Module):
         action: GroupAction,
         in_channels: int, 
         out_channels: List[int],
-        subgroup_args: tuple,
         use_sparse: bool = True,
         # streams: List[torch.cuda.Stream]=None
     ):
         """
         Args:
-            patch_lattice: the lattice structure of each patch. 
+            action: a group action.
             in_channels: number of input channels
             out_channels: list of output channels for each irrep
-            subgroup_args: a tuple specifying the subgroup of the full symmetry group of the patch lattice that we want to respect. 
-                See Group.subgroup() for details on how to specify this.
         """
         super().__init__()
+
+        assert_all_not_quaternionic(action.group)
+
         self.action = action
         self.in_channels = in_channels
         self.out_channels = out_channels
 
-        self.proj_calc = GroupActionIrrepProjectionCalculator(
-            action.pullback(action.group.subgroup(*subgroup_args)),
-            use_sparse=use_sparse
-        )
+        self.proj_calc = GroupActionIrrepProjectionCalculator(action, use_sparse=use_sparse)
 
-        self.L = self.proj_calc.num_elements
-        subgroup = self.action.group.subgroup(*subgroup_args).source
-        irreps = subgroup.real_irreps().values()
-        for irrep in irreps:
-            if irrep.rep_type is IrrepType.QUATERNIONIC:
-                raise NotImplementedError("Quaternion-type irreps are not supported yet.")
+        self.L = self.action.num_elements
+
+        irreps = action.group.real_irreps().values()
 
         self.irrep_dims = [irrep.dim if irrep.rep_type is IrrepType.REAL else irrep.dim//2 for irrep in irreps]
         self.dtypes = [torch.float32 if irrep.rep_type is IrrepType.REAL else torch.complex64
@@ -71,7 +67,6 @@ class EquivariantPatchEmbed(nn.Module):
             ) 
                 for i in range(self.proj_calc.num_irreps)]
         )
-
         self.reset_parameters()
 
 

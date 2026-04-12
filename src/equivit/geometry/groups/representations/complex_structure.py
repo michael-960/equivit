@@ -1,4 +1,5 @@
 import numpy as np
+import warnings
 
 
 class ComplexStructure:
@@ -57,8 +58,16 @@ class ComplexStructure:
 class StandardComplexStructure(ComplexStructure):
     """
     Standard complex structure on R^{2n}
+
+    TODO: Fix the implementation for complex_dim > 1
+    For example, a real tensor x = [x_0, x_1, x_2, x_3]
+    should be identified with the complex tensor
+    [x_0+ix_1, x_2+ix_3] if complex_dim=2, instead of 
+    [x_0+ix_2, x_1+ix_3] as the current implementation does.
     """
     def __init__(self, complex_dim):
+        if complex_dim != 1:
+            warnings.warn("StandardComplexStructure will not play well with torch.view_as_complex and torch.view_as_real for complex_dim > 1.")
         self.complex_dim = complex_dim
 
     def vector_r2c(self, x: np.ndarray, axis: int):

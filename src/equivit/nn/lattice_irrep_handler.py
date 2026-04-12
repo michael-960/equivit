@@ -74,7 +74,12 @@ class IrrepBasisHandler(nn.Module):
             # more memory efficient to store the basis tensors as sparse tensors, since they are often very sparse
             # but this could compromise speed
             for i, basis_vectors in enumerate(basis_vectors_list):
-                max_l = max([p.indices().shape[1] for p in basis_vectors])
+                n_copies = len(basis_vectors)
+                if n_copies > 0:
+                    max_l = max([p.indices().shape[1] for p in basis_vectors])
+                else:
+                    max_l = 1
+
                 d = self.irrep_dims[i]
                 _inds = []
                 _vals = []
@@ -86,10 +91,15 @@ class IrrepBasisHandler(nn.Module):
                     _vals.append(torch.cat([
                         p.values(), torch.zeros((n_pad,d), dtype=p.values().dtype)], dim=0).to(self.dtypes[i])
                         )
-                # (n_copies, max_l)  
-                self.register_buffer(f'proj_indices{i}', torch.cat(_inds, dim=0))
-                # each entry in list has shape (n_copies, max_l, 1, d)
-                self.register_buffer(f'proj_values{i}', torch.stack(_vals, dim=0).unsqueeze(-2))
+
+                if n_copies > 0:
+                    # (n_copies, max_l)  
+                    self.register_buffer(f'proj_indices{i}', torch.cat(_inds, dim=0))
+                    # each entry in list has shape (n_copies, max_l, 1, d)
+                    self.register_buffer(f'proj_values{i}', torch.stack(_vals, dim=0).unsqueeze(-2))
+                else:
+                    self.register_buffer(f'proj_indices{i}', torch.empty((0, 1), dtype=torch.long))
+                    self.register_buffer(f'proj_values{i}', torch.empty((0, 1, 1, d), dtype=torch.long))
         else:
             # less memory efficient but potentially faster (and simpler)
             for i, basis_vectors in enumerate(basis_vectors_list):
@@ -138,6 +148,7 @@ class GroupActionIrrepProjectionCalculator(IrrepBasisHandler):
     Given an action of a group G on a set X, this module calculates the
     projections onto the isotypic components of the induced representation of G
     on the space of functions X -> R.
+
     """
     def __init__(
         self, 

@@ -3,8 +3,10 @@ import torch
 import torch.nn as nn
 from typing import List, Tuple
 
-from ..geometry import Lattice, Group, AdvancedLattice, GroupElement
+from ..geometry import Lattice, Group, AdvancedLattice, GroupElement, GroupAction, IrrepType
 from .lattice_irrep_handler import GroupActionIrrepProjectionCalculator, InducedRepresentationInvariantSubspaceCalculator
+
+from .utils import assert_all_not_quaternionic
 
 
 # TODO: the current implementation does not include the hexvit case. We need to add this later.
@@ -27,41 +29,44 @@ class EquivariantPositionalEncoding(nn.Module):
     """
     def __init__(
         self,  
-        lattice: Lattice, 
+        action: GroupAction, 
         dims: List[int],
+        use_sparse: bool = True
     ):
         """
         Args:
             lattice: the lattice for which the positional encoding is defined
             dims: list of dimensions for each irrep in the representation V
-            streams: list of CUDA streams to use for each irrep (optional)
         """
         super().__init__()
-        self.dims = dims 
-        self.proj_calc = GroupActionIrrepProjectionCalculator(lattice.action, streams=streams)
+        assert_all_not_quaternionic(action.group)
 
-        assert len(self.dims) == len(self.proj_calc.num_irreps), f"Number of dimensions ({len(self.dims)}) must match number of irreps ({len(self.proj_calc.num_irreps)})"
+        self.dims = dims
+        self.proj_calc = GroupActionIrrepProjectionCalculator(action, use_sparse=use_sparse)
+
+        irreps = action.group.real_irreps().values()
+
+        self.dtypes = [torch.float32 if irrep.rep_type is IrrepType.REAL else torch.complex64 for irrep in irreps]
+
+        self.num_irreps =  len(irreps)
+
+        assert len(self.dims) == self.num_irreps, f"Number of dimensions ({len(self.dims)}) must match number of irreps ({self.num_irreps})"
 
         self.coefficients = nn.ParameterList(
             [nn.Parameter(
-                torch.zeros((self.proj_calc.num_irrep_copies[i], self.dims[i]))
+                torch.zeros((self.proj_calc.num_irrep_copies[i], self.dims[i]), dtype=self.dtypes[i])
             ) 
-                for i in range(self.proj_calc.num_irreps)]
+                for i in range(self.num_irreps)]
         )
-
-        # if streams is None:
-        #     self.streams = [None for _ in range(self.proj_calc.num_irreps)]
-        #     self.has_streams = False
-        # else:
-        #     self.streams = streams
-        #     self.has_streams = True
-
         self.reset_parameters()
 
     def reset_parameters(self):
         for coeff in self.coefficients:
             # xavier uniform for now, we should change this later
             nn.init.xavier_uniform_(coeff)
+
+    def get_positional_encodings(self) -> List[torch.Tensor]:
+        return self.proj_calc(self.coefficients)
 
     def forward(self, x: List[torch.Tensor]) -> List[torch.Tensor]:
         """
@@ -70,11 +75,12 @@ class EquivariantPositionalEncoding(nn.Module):
         Returns:
             list of tensors, each of shape (*, L, Ci, di) with positional encodings added
         """
-        # (L, Ci, di)
-        pos_enc = self.proj_calc(self.coefficients)
+        # (L, Ci, di) for each irrep
+        # each tensor can be real or complex depending on the irrep type
+        # if complex, di is the complex dimension
+        pos_enc = self.get_positional_encodings()
 
-        for i in range(self.proj_calc.num_irreps):
-            # with torch.cuda.stream(self.streams[i]):
+        for i in range(self.num_irreps):
             x[i] = x[i] + pos_enc[i] # (*, L, Ci, di)
 
         return x
@@ -116,13 +122,6 @@ class EquivariantInducedPositionalEncoding(nn.Module):
                 for i in range(self.proj_calc.num_irreps)]
         )
 
-        # if streams is None:
-        #     self.streams = [None for _ in range(self.proj_calc.num_irreps)]
-        #     self.has_streams = False
-        # else:
-        #     self.streams = streams
-        #     self.has_streams = True
-
         self.reset_parameters()
 
     def reset_parameters(self):
@@ -141,7 +140,6 @@ class EquivariantInducedPositionalEncoding(nn.Module):
         pos_enc = self.proj_calc(self.coefficients)
 
         for i in range(self.proj_calc.num_irreps):
-            # with torch.cuda.stream(self.streams[i]):
             x[i] = x[i] + pos_enc[i] # (*, L, Ci, di)
 
         return x

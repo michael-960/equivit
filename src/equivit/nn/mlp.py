@@ -11,7 +11,9 @@ from ..geometry import Group
 
 class EquivariantMLP(nn.Module):
     """
-    EquivariantLinear -> EquivariantNonlinear -> EquivariantLinear
+    EquivariantLinear -> EquivariantNonlinear -> ListDropout 
+    (-> norm layer) 
+    -> EquivariantLinear -> ListDropout
     """
     def __init__(self,
         group: Group,
@@ -20,7 +22,7 @@ class EquivariantMLP(nn.Module):
         dims_out: List[int],
         activation: nn.Module = nn.ReLU(),
         trivial_rep_bias: bool = True,
-        drop_probs: Tuple[float] = (0.,0.),
+        drop_probs: Tuple[float, float] = (0.,0.),
         norm_layer = None
     ):
         """
@@ -41,7 +43,7 @@ class EquivariantMLP(nn.Module):
         self.homogeneous_space_copies = np.array(homogeneous_space_copies)
         self.dims_hidden = (self.homogeneous_space_copies @ self.multipilcity_matrix).tolist()
 
-        self.fc1 = EquivariantLinear(dims_in, self.dims_hidden, trivial_rep_bias=trivial_rep_bias)
+        self.fc1 = EquivariantLinear(group, dims_in, self.dims_hidden, trivial_rep_bias=trivial_rep_bias)
 
         self.act = EquivariantNonlinear(group, homogeneous_space_copies, activation=activation)
 
@@ -52,15 +54,15 @@ class EquivariantMLP(nn.Module):
         else:
             self.norm = nn.Identity()
 
-        self.fc2 = EquivariantLinear(self.dims_hidden, dims_out, trivial_rep_bias=trivial_rep_bias)
+        self.fc2 = EquivariantLinear(group, self.dims_hidden, dims_out, trivial_rep_bias=trivial_rep_bias)
 
         self.drop2 = ListDropout(drop_probs[1])
 
 
-    def forward(self, x):
+    def forward(self, x: List[torch.Tensor]) -> List[torch.Tensor]:
         """
         Args:
-            x: list of tensors, each of shape (*, L, Ci, di), where di is the dimension of the i-th irrep and Ci=dims_in[i]
+            x: list of tensors, each of shape (*, L, Ci, di), where di is the (complex) dimension of the i-th irrep and Ci=dims_in[i]
         Returns: 
             list of tensors, each of shape (*, L, Ci_out, di), where Ci_out=dims_out[i]
         """

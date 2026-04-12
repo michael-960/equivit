@@ -1,11 +1,13 @@
 import torch.nn as nn
 import torch
 import torch.nn.functional as F
-from typing import Tuple, Callable, List
+from typing import Tuple, Callable, List, Union, Literal
+
+from dataclasses import dataclass
 
 from ..geometry import Group
 from .norm import EquivariantLayerNorm, ListLayerScale 
-from .attn import EquivariantAttention
+from .attn import EquivariantIrrepwiseAttention, EquivariantCoupledAttention
 from .drop import ListDropout, ListDropPath 
 from .mlp import EquivariantMLP
 
@@ -20,19 +22,21 @@ class EquivariantTranformerBlock(nn.Module):
     def __init__(self, 
         group: Group,
         dims: List[int],
-        num_heads: int,
-        homogeneous_space_copies: List[int],
+        num_heads: Union[int, List[int]],
 
+        homogeneous_space_copies: List[int], # for nonlinearity in MLP
+
+        attn_type: Literal['irrepwise', 'coupled'] = 'irrepwise', # only support 'irrepwise' for now
         trivial_rep_attn_bias: bool = True,
         attn_drop: float = 0.,
         trivial_rep_proj_bias: bool = True,
         proj_drop: float = 0.,
 
         trivial_rep_mlp_bias: bool = True,
-        mlp_drop_probs: Tuple[float] = (0,0),
+        mlp_drop_probs: Tuple[float, float] = (0.,0.),
 
         ls_init_values=None,
-        # norm_layer: Callable = HexLayerNorm, 
+        # norm_layer: Callable = None, 
         drop_path: float=0.
     ):
         super().__init__()
@@ -40,14 +44,28 @@ class EquivariantTranformerBlock(nn.Module):
         self.dims = dims
         self.norm1 = EquivariantLayerNorm(dims)
 
-        self.attn = EquivariantAttention(
-                        dims=dims,
-                        num_heads=num_heads,
-                        trivial_rep_attn_bias=trivial_rep_attn_bias,
-                        trivial_rep_proj_bias=trivial_rep_proj_bias,
-                        attn_drop=attn_drop,
-                        proj_drop=proj_drop
-                    )
+        if attn_type == 'irrepwise':
+            assert isinstance(num_heads, list), "num_heads should be a list of the same length as dims for irrepwise attention"
+            self.attn = EquivariantIrrepwiseAttention(
+                            group=group,
+                            dims=dims,
+                            num_heads=num_heads,
+                            trivial_rep_attn_bias=trivial_rep_attn_bias,
+                            trivial_rep_proj_bias=trivial_rep_proj_bias,
+                            attn_drop=attn_drop,
+                            proj_drop=proj_drop
+                        )
+        elif attn_type == 'coupled':
+            assert isinstance(num_heads, int), "num_heads should be an integer for coupled attention"
+            self.attn = EquivariantCoupledAttention(
+                            group=group,
+                            dims=dims,
+                            num_heads=num_heads,
+                            trivial_rep_attn_bias=trivial_rep_attn_bias,
+                            trivial_rep_proj_bias=trivial_rep_proj_bias,
+                            attn_drop=attn_drop,
+                            proj_drop=proj_drop
+                        )
 
         if ls_init_values is not None:
             self.ls1 = ListLayerScale(dims, init_values=ls_init_values)
@@ -56,7 +74,6 @@ class EquivariantTranformerBlock(nn.Module):
         self.drop_path_1 = ListDropPath(drop_path) if drop_path > 0. else nn.Identity()
 
         self.norm2 = EquivariantLayerNorm(dims)
-
 
         self.mlp = EquivariantMLP(
             group,

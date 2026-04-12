@@ -3,8 +3,9 @@ import torch.nn as nn
 import math
 from typing import List
 
-from ..geometry import Group
-from ..geometry import IrrepType
+from ..geometry import Group, IrrepType
+
+from .utils import assert_all_not_quaternionic
 
 
 class EquivariantLinear(nn.Module):
@@ -28,20 +29,13 @@ class EquivariantLinear(nn.Module):
             trivial_rep_bias: whether to include bias for the trivial representation (the first irrep)
         """
         super().__init__()
+        assert_all_not_quaternionic(group)
+
         self.group = group
         irreps = group.real_irreps()
 
         self.num_irreps = len(irreps)
-        self.dtypes = []
-        for irrep in irreps.values():
-            if irrep.rep_type is IrrepType.REAL:
-                self.dtypes.append(torch.float32)
-            elif irrep.rep_type is IrrepType.COMPLEX:
-                self.dtypes.append(torch.complex64)
-            elif irrep.rep_type is IrrepType.QUATERNION:
-                raise NotImplementedError("Quaternion-type irreps are not supported yet.")
-            else:
-                raise ValueError(f"Unknown irrep type: {irrep.rep_type}")
+        self.dtypes = [torch.float32 if irrep.rep_type is IrrepType.REAL else torch.complex64 for irrep in irreps.values()]
 
         assert len(dims_in) == self.num_irreps, "Length of dims_in should match number of irreps"
         assert len(dims_out) == self.num_irreps, "Length of dims_out should match number of irreps"
@@ -84,8 +78,10 @@ class EquivariantLinear(nn.Module):
         outs = [None for _ in range(self.num_irreps)]
 
         for i in range(self.num_irreps):
-            # with torch.cuda.stream(self.streams[i]):
-            outs[i] = self.weights[i] @ x[i]
+            z = self.weights[i] @ x[i]
+            outs[i] = z.view(-1).view(*z.shape) 
+            # this is to ensure that z has the correct strides when there are 1's in z.shape
+            # without this, PyTorch will throw an error if we later do torch.view_as_real(z) if z.shape[-1] == 1 and z.stride(-1) != 1
             if i == 0 and self.bias is not None:
                 outs[i] += self.bias
         return outs
