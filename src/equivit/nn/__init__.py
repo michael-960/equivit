@@ -12,4 +12,4 @@ from .transformer_block import EquivariantTranformerBlock
 
 
 
-from .utils import assert_all_not_quaternionic, act_on_tensors, random_irrep_tensors, induced_action_on_tensors
+from .utils import assert_all_not_quaternionic, act_on_tensors, random_irrep_tensors , induced_action_on_tensors

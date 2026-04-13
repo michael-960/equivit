@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 from typing import List, Tuple
 
-from ..geometry import Lattice, Group, AdvancedLattice, GroupElement, GroupAction, IrrepType
+from ..geometry import Lattice, Group, AdvancedLattice, GroupElement, GroupAction, IrrepType, EquivariantPullbackBundle
 from .lattice_irrep_handler import GroupActionIrrepProjectionCalculator, InducedRepresentationInvariantSubspaceCalculator
 
 from .utils import assert_all_not_quaternionic
@@ -97,28 +97,36 @@ class EquivariantInducedPositionalEncoding(nn.Module):
     """
     def __init__(
         self,  
-        action: GroupAction, 
-        subgroup_args: tuple,
-        representatives: List[GroupElement],
-        basepoints: List[int],
+        # action: GroupAction, 
+        # subgroup_args: tuple,
+        # representatives: List[GroupElement],
+        # basepoints: List[int],
+        pullback_bundle: EquivariantPullbackBundle,
         dims: List[int],
         use_sparse: bool = True
     ):
+        """
+        Args:
+            pullback_bundle: a G-equivariant principal H-bundle.
+            dims: list of dimensions for each irrep of H
+        """
         super().__init__()
         self.dims = dims 
 
+        self.pullback_bundle = pullback_bundle
+
         self.proj_calc = InducedRepresentationInvariantSubspaceCalculator(
-                            action, 
-                            subgroup_args=subgroup_args,
-                            representatives=representatives,
-                            basepoints=basepoints,
+                            # action, 
+                            # subgroup_args=subgroup_args,
+                            # representatives=representatives,
+                            # basepoints=basepoints,
+                            pullback_bundle=self.pullback_bundle,
                             use_sparse=use_sparse
             )
 
-        subgroup = action.group.subgroup(*subgroup_args).source
-        assert_all_not_quaternionic(subgroup)
+        assert_all_not_quaternionic(pullback_bundle.subgroup)
         
-        irreps = subgroup.real_irreps().values()
+        irreps = pullback_bundle.subgroup.real_irreps().values()
 
         self.dtypes = [torch.float32 if irrep.rep_type is IrrepType.REAL else torch.complex64 for irrep in irreps]
 

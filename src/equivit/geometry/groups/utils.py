@@ -121,52 +121,52 @@ def decompose_set_action(action: GroupAction) -> Dict[str, List[torch.sparse.Flo
     return irrep_projections
 
 
-def induce_and_find_invariant_vectors(
-    action: GroupAction,
-    subgroup_args: tuple,
-    subgroup_representation: GroupRepresentation,
-    representatives: List[GroupElement],
-    basepoints: List[int]
-):
-    """
-    Find a basis for the invariant subspace of the induced representation (see Action.induce_from for details of the construction).
+# def induce_and_find_invariant_vectors(
+#     action: GroupAction,
+#     subgroup_args: tuple,
+#     subgroup_representation: GroupRepresentation,
+#     representatives: List[GroupElement],
+#     basepoints: List[int]
+# ):
+#     """
+#     Find a basis for the invariant subspace of the induced representation (see Action.induce_from for details of the construction).
 
-    Args:
-        action: the group action
-        subgroup_args: the arguments specifying the subgroup to induce from (see Action.induce_from for details)
-        subgroup_representation: a representation of the subgroup specified by subgroup_args
-        representatives: a list of representatives for the cosets of the
-            subgroup in the group. The order is important and should correspond to
-            the order of the cosets returned by action.group.left_cosets (see Group.left_cosets for details).
-        basepoints: list of integers, one for each G-orbit of X.  The order is
-                important and should correspond to the order of the orbits returned by action.orbits().
+#     Args:
+#         action: the group action
+#         subgroup_args: the arguments specifying the subgroup to induce from (see Action.induce_from for details)
+#         subgroup_representation: a representation of the subgroup specified by subgroup_args
+#         representatives: a list of representatives for the cosets of the
+#             subgroup in the group. The order is important and should correspond to
+#             the order of the cosets returned by action.group.left_cosets (see Group.left_cosets for details).
+#         basepoints: list of integers, one for each G-orbit of X.  The order is
+#                 important and should correspond to the order of the orbits returned by action.orbits().
 
-    Note: each basepoint is an integer in [0, |O|), where O is the corresponding G-orbit.
-    """
-    orbits = action.orbits()
-    subgroup_incl = action.group.subgroup(*subgroup_args)
-    subgroup = subgroup_incl.source
+#     Note: each basepoint is an integer in [0, |O|), where O is the corresponding G-orbit.
+#     """
+#     orbits = action.orbits()
+#     subgroup_incl = action.group.subgroup(*subgroup_args)
+#     subgroup = subgroup_incl.source
 
-    dim = subgroup_representation(subgroup.identity()).shape[0]
+#     dim = subgroup_representation(subgroup.identity()).shape[0]
 
-    trivial_rep = list(action.group.real_irreps().values())[0]
+#     trivial_rep = list(action.group.real_irreps().values())[0]
 
-    invariant_vectors = []
+#     invariant_vectors = []
 
-    for orbit, basepoint in zip(orbits, basepoints):
-        restricted_action = action.restrict_action(orbit)
-        induced_rep = restricted_action.induce_from(subgroup_args, subgroup_representation, representatives, basepoint)
+#     for orbit, basepoint in zip(orbits, basepoints):
+#         restricted_action = action.restrict_action(orbit)
+#         induced_rep = restricted_action.induce_from(subgroup_args, subgroup_representation, representatives, basepoint)
 
-        # shape: (number of invariant vectors, induced_rep_dim)
-        inv_vecs = find_irrep_components(induced_rep, trivial_rep, clip_small_values=1e-9)[:,0,:].reshape(-1, len(orbit), dim)
+#         # shape: (number of invariant vectors, induced_rep_dim)
+#         inv_vecs = find_irrep_components(induced_rep, trivial_rep, clip_small_values=1e-9)[:,0,:].reshape(-1, len(orbit), dim)
 
-        for i in range(inv_vecs.shape[0]):
-            invariant_vectors.append(
-                torch.sparse_coo_tensor(
-                    indices=torch.tensor(orbit).unsqueeze(0),
-                    values=inv_vecs[i],
-                    size=(action.num_elements, dim)
-                ).coalesce()
-            )
+#         for i in range(inv_vecs.shape[0]):
+#             invariant_vectors.append(
+#                 torch.sparse_coo_tensor(
+#                     indices=torch.tensor(orbit).unsqueeze(0),
+#                     values=inv_vecs[i],
+#                     size=(action.num_elements, dim)
+#                 ).coalesce()
+#             )
 
-    return invariant_vectors
+#     return invariant_vectors

@@ -1,6 +1,6 @@
 import torch
 from typing import List, Optional, Callable
-from ..geometry import Group, IrrepType, GroupElement, GroupAction
+from ..geometry import Group, IrrepType, GroupElement, GroupAction, EquivariantPullbackBundle
 
 
 
@@ -139,10 +139,7 @@ def equivariance_error_over_group(
 
 
 def induced_action_on_tensors(
-    action: GroupAction,
-    subgroup_args: tuple,
-    representatives: List[GroupElement],
-    basepoints: List[int],
+    bundle: EquivariantPullbackBundle,
     g: GroupElement,
     x: List[torch.Tensor]
 ) -> List[torch.Tensor]:
@@ -154,60 +151,14 @@ def induced_action_on_tensors(
 
     TODO: isolate the first four parameters and make a class out of them (pullback bundle?).
     """
-
-    orbits = action.orbits()
-
-    group = action.group
-    subgroup_incl = group.subgroup(*subgroup_args)
-    subgroup = subgroup_incl.source
-    assert_all_not_quaternionic(subgroup)
-
-    cosets = group.left_cosets(subgroup_incl)
-    fibers = []
-
-    for k in representatives:
-        fiber = []
-        for i, orbit in zip(basepoints, orbits):
-            kx0 = action(k)[orbit[i]]
-            h_orbit = []
-            for h in subgroup:
-                hkx0 = action(subgroup_incl(h))[kx0]
-                h_orbit.append(hkx0)
-            fiber.extend(h_orbit) 
-        fibers.append(fiber)
-
-    coset_inds = {}
-    for i, coset in enumerate(cosets):
-        for k in coset:
-            coset_inds[k] = i
-
-    GtoH = {}
-    for h in subgroup:
-        GtoH[subgroup_incl(h)] = h
-
     y = []
-
-    for r, irrep in enumerate(subgroup.real_irreps().values()):
-        yr = torch.zeros_like(x[r])
-        dtype = x[r].dtype
-        for i, k in enumerate(representatives):
-            fiber = fibers[i]
-            gfiber = [action(g)[t] for t in fiber]
-        
-            b = representatives[coset_inds[g*k]]
-            h = GtoH[b.inv() * g * k]
-
-            if irrep.rep_type is IrrepType.REAL:
-                assert dtype in [torch.float32, torch.float64], f"Expected real dtype for irrep {irrep.name}, but got {dtype}"
-                yr[gfiber,:,:] = torch.einsum('ij, ...j -> ...i', 
-                                            torch.tensor(irrep(h)).to(torch.float32), 
-                                            x[r][fiber,:,:])
-            else:
-                assert dtype in [torch.complex64, torch.complex128], f"Expected complex dtype for irrep {irrep.name}, but got {dtype}"
-                real_dtype = torch.float32 if dtype == torch.complex64 else torch.float64
-                yr[gfiber,:,:] = torch.einsum('ij,...j -> ...i', torch.tensor(irrep(h)).to(real_dtype),
-                                            x[r][fiber,:,:].view(real_dtype)
-                                            ).contiguous().view(dtype)
-        y.append(yr)
-
+    for i, irrep in enumerate(bundle.subgroup.real_irreps().values()):
+        dtype = x[i].dtype
+        if irrep.rep_type is IrrepType.REAL:
+            assert dtype in [torch.float32, torch.float64], f"Expected real dtype for irrep {irrep.name}, but got {dtype}"
+            y.append(bundle.act_on_section(g, x[i], irrep))
+        else:
+            assert dtype in [torch.complex64, torch.complex128], f"Expected complex dtype for irrep {irrep.name}, but got {dtype}"
+            real_dtype = torch.float32 if dtype == torch.complex64 else torch.float64
+            y.append(bundle.act_on_section(g, x[i].view(real_dtype), irrep).contiguous().view(dtype))
     return y

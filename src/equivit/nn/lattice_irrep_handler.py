@@ -1,9 +1,10 @@
-from ..geometry import Honeycomb, Triangle, decompose_set_action, induce_and_find_invariant_vectors
+from ..geometry import Honeycomb, Triangle, decompose_set_action, EquivariantPullbackBundle
 import torch.nn as nn
 import torch
 import torch.nn.functional as F
 import numpy as np
 from typing import Tuple, List, Optional
+
 
 
 from .utils import assert_all_not_quaternionic
@@ -214,44 +215,47 @@ class InducedRepresentationInvariantSubspaceCalculator(IrrepBasisHandler):
     """
     def __init__(
         self, 
-        action: GroupAction,
-        subgroup_args: tuple,
-        representatives: List[GroupElement],
-        basepoints: List[int],
+        # action: GroupAction,
+        # subgroup_args: tuple,
+        # representatives: List[GroupElement],
+        # basepoints: List[int],
+        pullback_bundle: EquivariantPullbackBundle,
         use_sparse: bool = True
     ):
-        self.action = action
-        self.subgroup_args = subgroup_args
-        self.subgroup_incl = self.action.group.subgroup(*subgroup_args)
-        self.subgroup = self.subgroup_incl.source
-        assert_all_not_quaternionic(self.subgroup)
+        # self.action = action
+        # self.subgroup_args = subgroup_args
+        # self.subgroup_incl = self.action.group.subgroup(*subgroup_args)
+        # self.subgroup = self.subgroup_incl.source
+        # assert_all_not_quaternionic(self.subgroup)
 
-        self.irreps = self.subgroup.real_irreps()
+        self.pullback_bundle = pullback_bundle
+
+        self.irreps = self.pullback_bundle.subgroup.real_irreps()
         self.irrep_complex_dims = [irrep.dim if irrep.rep_type is IrrepType.REAL else irrep.dim//2
                                for irrep in self.irreps.values()]
 
-        self.representatives = representatives
-        self.basepoints = basepoints
+        # self.representatives = representatives
+        # self.basepoints = basepoints
 
         super().__init__(self.irrep_complex_dims,
                          is_complex=[irrep.rep_type is IrrepType.COMPLEX for irrep in self.irreps.values()], 
                          use_sparse=use_sparse)
 
     def get_basis_vectors_list(self):
-        irreps = self.subgroup.real_irreps()
         _dtypes = [torch.float64 if irrep.rep_type is IrrepType.REAL else torch.complex128 for irrep in self.irreps.values()]
 
         invariant_vectors = []
 
-        for i, irrep in enumerate(irreps.values()):
+        for i, irrep in enumerate(self.irreps.values()):
             # list of sparse COO tensors, each of shape (|X|, irrep_dim)
-            _basis_vectors = induce_and_find_invariant_vectors(
-                self.action,
-                self.subgroup_args,
-                irrep,
-                self.representatives,
-                self.basepoints
-            )
+            _basis_vectors = self.pullback_bundle.find_invariant_subspace(irrep)
+            # _basis_vectors = induce_and_find_invariant_vectors(
+            #     self.action,
+            #     self.subgroup_args,
+            #     irrep,
+            #     self.representatives,
+            #     self.basepoints
+            # )
             basis_vectors = []
             for p in _basis_vectors:
                 L, d = p.shape
