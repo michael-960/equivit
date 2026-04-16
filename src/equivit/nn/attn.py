@@ -11,25 +11,42 @@ from .utils import assert_all_not_quaternionic
 
 
 class EquivariantCoupledAttention(nn.Module):
-    """
+    r"""
     This module does the following:
 
-    Input: a list of tensors of shapes (*, L, C0, d0), (*, L, C1, d1), ..., 
-    where di is the (complex) dimension of the i-th irrep.
+    Input: a list of tensors of shapes :math:`(*, L, C_0, d_0), (*, L, C_1, d_1),\dotsb`, 
+    where :math:`d_i` is the (complex) dimension of the :math:`i`-th irrep.
 
-    1. For each i, if the i-th irrep is of complex type, view the corresponding tensor as a float32 tensor of shape (*, L, Ci, di*2).
-       (Let Di = di*2 for complex irreps and Di = di for real irreps, so that we can write the shape as (*, L, Ci, Di) for all i.)
-    2. Reshape each tensor to (*, L, H, Ci/H, Di), where H is the number of attention heads. H must divide each Ci, and H is the same for all i.
-    3. Flatten the last two dimensions to get (*, L, H, Ci/H * Di)
-    4. Concatenate all tensors along the last dimension to get (*, L, H, sum_i Ci/H * Di)
-    5. Apply multihead attention with H heads and head dimension sum_i Ci/H * Di
-    6. Step 4. results in a tensor of shape (*, L, H, sum_i Ci/H * Di). Split this back into a list of tensors of shapes (*, L, H, Ci/H * Di) for each i.
-    7. Reshape each tensor back to (*, L, Ci, Di)
+    1. For each :math:`i`, if the :math:`i`-th irrep is of complex type, view the corresponding tensor as a float32 tensor of shape :math:`(*, L, C_i, d_i\cdot 2)`.
+       (Let :math:`D_i = d_i\cdot 2` for complex irreps and :math:`D_i = d_i` for real irreps, so that we can write the shape as :math:`(*, L, C_i, D_i)` for all :math:`i`.)
+       
+    2. Reshape each tensor to :math:`(*, L, H, \frac{C_i}{H}, D_i)`, where :math:`H` is the number of attention heads. :math:`H` must 
+       divide each :math:`C_i`, and :math:`H` is the same for all :math:`i`.
+
+    3. Flatten the last two dimensions to get :math:`(*, L, H, \frac{C_i}{H} \cdot D_i)`
+
+    4. Concatenate all tensors along the last dimension to get a tensor of shape :math:`(*, L, H, \sum_i \frac{C_i}{H} \cdot Di)`
+
+    5. Apply multihead attention with :math:`H` heads and head dimension :math:`\sum_i \frac{C_i}{H} \cdot Di`
+
+    6. Step 5. results in a tensor of shape :math:`(*, L, H, \sum_i \frac{C_i}{H} \cdot D_i)`. Split this back into a list of tensors 
+       of shapes :math:`(*, L, H, \frac{C_i}{H} \cdot D_i) for each :math:`i`.
+
+    7. Reshape each tensor back to :math:`(*, L, C_i, D_i)`
 
     Compared to EquivariantIrrepwiseAttention, this allows for coupling between
     different irreps in the attention mechanism.
 
-    This is the attention mechanism used in octic-vit (I think).
+    This is the attention mechanism used in octic-vit.
+
+    Args:
+        group: the symmetry group
+        dims: list of input/output channels for each irrep
+        num_heads: number of attention heads (must divide all input channels)
+        trivial_rep_attn_bias: whether to include bias for the trivial representation in the attention linear layer computing :math:`q, k, v`
+        attn_drop: dropout probability for attention
+        trivial_rep_proj_bias: whether to include bias for the trivial representation in the output projection linear layer
+        proj_drop: dropout probability for the output projection
     """
     def __init__(self,
         group: Group,
@@ -78,9 +95,9 @@ class EquivariantCoupledAttention(nn.Module):
     def forward(self, x: List[torch.Tensor]) -> List[torch.Tensor]:
         """
         Args:
-            x: list of tensors, each of shape (*, L, Ci, di), where di is the (complex) dimension of the i-th irrep
+            x: list of tensors, each of shape :math:`(*, L, C_i, d_i)`, where :math:`d_i` is the (complex) dimension of the :math:`i`-th irrep
         Returns:
-            list of tensors, each of shape (*, L, Ci, di)
+            list of tensors, each of shape :math:`(*, L, C_i, d_i)`
         """
 
         # (*, L, 3, H, Ci/H * Di)
@@ -113,8 +130,20 @@ class EquivariantCoupledAttention(nn.Module):
         return self.proj_drop(self.proj(y))
 
 class EquivariantIrrepwiseAttention(nn.Module):
-    """
+    r"""
     Irrep-wise multihead attention.
+
+    Args:
+        group: the symmetry group
+        dims: a list :math:`C_0, C_1, \dotsb` of input/output channels for each irrep
+        num_heads: a list :math:`h_0, h_1, \dotsb` specifying the number of attention heads in each irrep (:math:`h_i` must divide each input channel :math:`C_i`)
+        trivial_rep_attn_bias: whether to include bias for the trivial representation in the attention linear layer computing :math:`q, k, v`
+        attn_drop: dropout probability for attention
+        trivial_rep_proj_bias: whether to include bias for the trivial representation in the output projection linear layer
+        proj_drop: dropout probability for the output projection
+
+    Note: 
+        Effectively, the total number of attention heads is :math:`\sum_i h_i`, since we are doing MHA separately for each irrep.
     """
     def __init__(self,
         group: Group,
@@ -125,17 +154,6 @@ class EquivariantIrrepwiseAttention(nn.Module):
         trivial_rep_proj_bias: bool = True,
         proj_drop: float = 0.
     ):
-        """
-        Args:
-            dims: list of input/output channels for each irrep
-            num_heads: number of attention heads *per irrep* (must divide all input channels)
-            trivial_rep_attn_bias: whether to include bias for the trivial representation in the attention linear layer computing q, k, v
-            attn_drop: dropout probability for attention
-            trivial_rep_proj_bias: whether to include bias for the trivial representation in the output projection linear layer
-            proj_drop: dropout probability for the output projection
-
-        Note: effectively, the total number of attention heads is \sum_i num_heads[i], since we are doing MHA separately for each irrep.
-        """
         super().__init__()
         assert_all_not_quaternionic(group)
         self.group = group
@@ -172,9 +190,9 @@ class EquivariantIrrepwiseAttention(nn.Module):
     def forward(self, x: List[torch.Tensor]) -> List[torch.Tensor]:
         """
         Args:
-            x: list of tensors, each of shape (*, L, Ci, di), where di is the (complex) dimension of the i-th irrep
+            x: list of tensors, each of shape :math:`(*, L, C_i, d_i)`, where :math:`d_i` is the (complex) dimension of the :math:`i`-th irrep
         Returns:
-            list of tensors, each of shape (*, L, Ci, di)
+            list of tensors, each of shape :math:`(*, L, C_i, d_i)`
         """
 
         # list of tensors of shape (*, L, 3*Ci, di)

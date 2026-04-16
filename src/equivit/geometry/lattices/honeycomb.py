@@ -16,14 +16,15 @@ class Honeycomb(Lattice):
     A honeycomb lattice consists of two types of sites - a and b.
 
     There are four indexing schemes:
-    - 
+
+    Args:
+        N: number of layers of the honeycomb
     """
     symmetry_group = D6
+
+    N: int
+    """number of layers of the honeycomb"""
     def __init__(self, N: int):
-        """
-        :param N: number of layers of the honeycomb
-        :type N: int
-        """
         self.N = N
 
         self._setup_indices()
@@ -103,6 +104,9 @@ class Honeycomb(Lattice):
     def get_pixel_polygons(self, radius_eps=None):
         """
         Triangular pixels centered at the honeycomb lattice sites.
+
+        Args:
+            radius_eps: a small number to adjust the size of the pixels. If None, it will be set to -0.01, which means the pixels will be slightly smaller than the default size.
         """
         if radius_eps is None: radius_eps = -0.01
         r = np.sqrt(3) * (1+radius_eps)

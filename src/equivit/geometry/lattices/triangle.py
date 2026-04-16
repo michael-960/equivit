@@ -9,26 +9,26 @@ from .base import Lattice
 
 
 class Triangle(Lattice):
-    """
+    r"""
     A hexaongal lattice restricted to a regular triangle.
 
     There are three indexing schemes:
         - flattened: lattice sites are indexed by a single integer
         - lattice sites are indexed by a tuple of two integers which correspond to
-          the coefficients of the two primal basis vectors (e_1, e_2) of the hexagonal lattice
+          the coefficients of the two primal basis vectors :math:`(e_1, e_2)` of the hexagonal lattice
         - lattice sites are indexed by a tuple of three integers which
           correspond to the barycentric coordinates
 
-    :var N: side length of the hexagon
-    :var L: number of lattice points
+    Args:
+        N: number of lattice sites on a single side of the triangle minus one.
     """
 
     symmetry_group = D3
 
+    N: int
+    """side length of the triangle (number of lattice sites on a single side of the triangle **minus one**)"""
+
     def __init__(self, N: int):
-        """
-        N: number of lattice sites on a single side of the triangle minus one.
-        """
         self.N = N # side length of the triangle
         self._setup_indices()
         self._setup_group_action()

@@ -13,22 +13,43 @@ if TYPE_CHECKING:
 
 
 class EquivariantPullbackBundle:
-    """
+    r"""
     Given:
-     - a group G acting on a set X
-     - a choice of basepoint x_O in each G-orbit O of X
-     - a subgroup H of G such that Stab(x_O) \subset H for each basepoint x_O
+     - a group :math:`G` acting on a set :math:`X`
+     - a choice of basepoint :math:`x_O` in each :math:`G`-orbit :math:`O \subset X`
+     - a subgroup :math:`H \subset G` such that :math:`\mathrm{Stab}_G(x_O) \subset H` for each basepoint :math:`x_O`
 
-     consider the following construction:
+    consider the following construction:
 
-    Let phi: X -> G/H be the map sending each x in X to the coset gH such that g.x_O = x, where O is the G-orbit containing x. 
+    Let :math:`\phi: X \rightarrow G/H` be the map sending each :math:`x \in X`
+    to the coset :math:`gH` such that :math:`gx_O = x`, where :math:`O` is the
+    :math:`G`-orbit containing :math:`x`. 
 
-    This is well-defined: if g' is another element such that g'.x_O = x, then g^{-1}g' \in Stab(x_O) \subset H.
+    This is well-defined: if :math:`g` is another element such that :math:`gx_O = x`, then :math:`g^{-1}g' \in Stab_G(x_O) \subset H`.
 
-    Now, pull back the principal H-bundle G -> G/H along phi to get a principal H-bundle over X.
+    Now, pull back the principal :math:`H`-bundle :math:`G \rightarrow G/H` along
+    :math:`\phi` to get a principal :math:`H`-bundle over :math:`X`:
 
-    If V is any H-representation, then one can construct an associated vector bundle over X with typical fiber V.
-    The space of sections of this bundle carries a natural G-representation.
+    .. math::
+        \begin{CD}
+            P = \phi^*G @>>> G \\
+            @VVV @VVV \\
+            X @>\phi>> G/H
+        \end{CD}
+
+
+    If :math:`V` is any :math:`H`-representation, then one can construct an associated vector bundle over :math:`X` with typical fiber :math:`V`.
+    The space of sections of this bundle carries a natural :math:`G`-representation.
+
+    Args:
+        action: a group action of :math:`G` on :math:`X`
+        subgroup_args: arguments specifying the subgroup :math:`H` (see Group.subgroup for details)
+        representatives: a list of representatives for the left cosets of
+            :math:`H` in :math:`G` (the order of the representatives should match
+            the order of left cosets returned by Group.left_cosets)
+        basepoints: a list of integers specifying the index of the basepoint in
+            each :math:`G`-orbit (the order should match the order of orbits
+            returned by GroupAction.orbits)
     """
     def __init__(self, action: GroupAction, subgroup_args: tuple, representatives: List[GroupElement], basepoints: List[int]):
         self.action = action
@@ -94,9 +115,9 @@ class EquivariantPullbackBundle:
         self, g: GroupElement, x, repr: GroupRepresentation,
         action_dim: int=0
     ) -> List[torch.Tensor]:
-        """
-        Given an H-representation V, there is a natural G-action on the space of
-        sections of the associated vector bundle P \\times_H V over X with typical fiber V.
+        r"""
+        Given an :math:`H`-representation :math:`V`, there is a natural :math:`G`-action on the space of
+        sections of the associated vector bundle :math:`P` \times_H V` over :math:`X` with typical fiber :math:`V`.
         """
         tensor_type = 'numpy'
         dtype = x.dtype
@@ -130,13 +151,14 @@ class EquivariantPullbackBundle:
         return y
 
 
-    def find_invariant_subspace(self, repr: GroupRepresentation):
+    def find_invariant_subspace(self, repr: GroupRepresentation) -> List[torch.Tensor]:
         """
         Find a basis for the invariant subspace of the induced representation (see Action.induce_from for details of the construction).
 
         Args:
             repr: a representation of H specified by subgroup_args
-        Note: each basepoint is an integer in [0, |O|), where O is the corresponding G-orbit.
+        Note: 
+            each basepoint is an integer in [0, |O|), where O is the corresponding G-orbit.
         """
         from ..utils import find_irrep_components
 

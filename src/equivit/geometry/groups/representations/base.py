@@ -14,21 +14,29 @@ class IrrepType(Enum):
 
 
 class GroupRepresentation:
-    """
+    r"""
     An object that records the representation matrices of a representation of a finite group.
 
-    The representation can be either over R or over C. 
-    If the representation is over R and admits a complex structure, then the complex structure can be specified by the complex_structure argument.
+    The representation can be either over :math:`\mathbb{R}` or over :math:`\mathbb{C}`. 
+    If the representation is over :math:`\mathbb{R}` and admits a complex structure, then the complex structure can be specified by the complex_structure argument.
+
+    Args:
+        group: the group of the representation
+        rep_matrices: a dictionary mapping group elements to representation
+                        matrices. Each matrix should be of shape :math:`(d, d)`, where :math:`d`
+                        is the dimension of the representation. 
+        complex_structure: if the representation is over :math:`\mathbb{R}` and admits a complex structure, this argument specifies the complex structure. 
+                           It should not be specified for representations over :math:`\mathbb{C}`.
+
+    Note:
+        We rely on the user to ensure that the representation matrices satisfy the group representation property, i.e., :math:`\rho(g h) = \rho(g) \rho(h)` for all group elements :math:`g, h`.
+
     """
     def __init__(self,
             group: Group, 
             rep_matrices: Dict[GroupElement, np.ndarray],
             complex_structure: Optional[ComplexStructure]=None
         ):
-        """
-        complex_structure: if the representation is over R and admits a complex structure, this argument specifies the complex structure. 
-        It should not be specified for representations over C.
-        """
 
         assert group.is_finite(), "Only representations of finite groups are supported for now."
 

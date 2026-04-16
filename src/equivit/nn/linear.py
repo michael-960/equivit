@@ -9,11 +9,40 @@ from .utils import assert_all_not_quaternionic
 
 
 class EquivariantLinear(nn.Module):
-    """
-    Per-irrep linear layer. Each irrep is treated separately, and the linear
-    transformation is applied to the feature dimension of each irrep.
+    r"""
+    :math:`G`-equivariant linear layer applied to a list of tensors transforming in irreps of :math:`G`.
 
-    Bias can be optionally added to the trivial representation (the first irrep).
+    Let :math:`G` be a group and let :math:`V_0, V_1, \dotsb, V_{M-1}` be the real irreps of :math:`G`.
+
+    For an input list of tensors
+    :math:`x_0, x_1, \dotsb, x_{M-1}`, 
+    where :math:`x_i` has shape :math:`(*, C_i, d_i)` and transforms in the irrep :math:`V_i` 
+    (i.e. the last dimension of :math:`x_i` transforms according to the representation matrix of :math:`V_i`), 
+    this layer applies a linear transformation to each tensor that is equivariant under the :math:`G`-action.
+
+    That is, it applys :math:`\bigoplus_i L_i` to the input, where 
+
+    .. math::
+        L_i\in \mathrm{Hom}_G(\mathbb{R}^{C_i}\otimes V_i, \mathbb{R}^{C_i'}\otimes V_i)
+
+    is a learnable intertwiner.
+
+    If :attr:`trivial_rep_bias` is True, then a learnable (per-channel) bias term is added to the output of the trivial representation (the zeroth irrep). 
+
+    Args:
+        group: the symmetry group :math:`G` that we want to respect
+        dims_in: list of input channels :math:`C_0, C_1, \dotsb`, one for each irrep
+        dims_out: list of output channels :math:`C_0', C_1', \dotsb`, one for each irrep
+        trivial_rep_bias: whether to include bias for the trivial representation (the zeroth irrep)
+
+    Note:
+        Currently, we only support groups whose irreps are all of real or complex type. We do not support groups with quaternionic irreps yet.
+
+        - If :math:`V_i` is of real type, then :math:`\mathrm{Hom}_G(\mathbb{R}^{C_i}\otimes V_i, \mathbb{R}^{C_i'}\otimes V_i)` is isomorphic to :math:`\mathbb{R}^{C_i'\times C_i}`.
+        - If :math:`V_i` is of complex type, then :math:`\mathrm{Hom}_G(\mathbb{R}^{C_i}\otimes V_i, \mathbb{R}^{C_i'}\otimes V_i) \cong \mathbb{C}^{C_i'\times C_i}`.
+          We deal with this by having complex-valued weights. Consequently, the input tensor :math:`x_i` for a complex irrep should be ``torch.complex64`` instead of ``torch.float32``.
+          This also means that the representation matrices of the real irrep must be chosen tocommute with the standard complex structure.
+          This is the case for the implementation of the irreps of :class:`equivit.geometry.DihedralGroup` and :class:`equivit.geometry.CyclicGroup`.
     """
     def __init__(self,
         group: Group,
@@ -21,13 +50,6 @@ class EquivariantLinear(nn.Module):
         dims_out: List[int], 
         trivial_rep_bias: bool=True,
     ):
-        """
-        Args:
-            group: the symmetry group that we want to respect
-            dims_in: list of input channels for each irrep
-            dims_out: list of output channels for each irrep
-            trivial_rep_bias: whether to include bias for the trivial representation (the first irrep)
-        """
         super().__init__()
         assert_all_not_quaternionic(group)
 
@@ -67,13 +89,14 @@ class EquivariantLinear(nn.Module):
 
     def forward(self, x: List[torch.Tensor]) -> List[torch.Tensor]:
         """
-        x: list of tensors, each of shape (*, Ci, di) for each irrep
+        Args:
+            x: list of tensors, each of shape :math:`(*, C_i, d_i)` for each irrep
 
-        Returns: list of tensors, each of shape (*, Di, di) for each irrep (where Di is the output dimension for that irrep)
+        Returns: list of tensors, each of shape :math:`(*, C_i', d_i)` for each irrep (where :math:`C_i'` is the output dimension for that irrep)
 
         Note:
-            - If the i-th irrep is of real type, then the dtype of x[i] should be real
-            - If the i-th irrep is of complex type, then the dtype of x[i] should be complex.
+            - If the :math:`i`-th irrep is of real type, then the dtype of ``x[i]`` should be real
+            - If the :math:`i`-th irrep is of complex type, then the dtype of ``x[i]`` should be complex.
         """
         outs = [None for _ in range(self.num_irreps)]
 

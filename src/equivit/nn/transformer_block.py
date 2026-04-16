@@ -12,10 +12,18 @@ from .drop import ListDropout, ListDropPath
 from .mlp import EquivariantMLP
 
 
-class EquivariantTranformerBlock(nn.Module):
+class EquivariantTransformerBlock(nn.Module):
     """
-    LayerNorm -> Attention -> LayerScale -> DropPath
-    -> LayerNorm -> MLP -> LayerScale -> DropPath
+    The layer applies the following operations in sequence:
+
+    - :class:`EquivariantLayerNorm` 
+    - :class:`EquivariantIrrepwiseAttention`  or :class:`EquivariantCoupledAttention` (depending on the value of ``attn_type``)
+    - :class:`ListLayerScale` 
+    - :class:`ListDropPath`
+    - :class:`LayerNorm` 
+    - :class:`EquivariantMLP` 
+    - :class:`ListLayerScale` 
+    - :class:`ListDropPath`
 
     Everything is equivariant.
     """

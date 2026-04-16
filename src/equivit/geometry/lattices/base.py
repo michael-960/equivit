@@ -17,7 +17,13 @@ class Lattice:
     It might be more accurate to call this a point cloud (especially when the
     symmetry group is trivial), but we will stick with the term lattice.
     """
-    symmetry_group = TRIVIAL_GROUP
+    symmetry_group: Group = TRIVIAL_GROUP
+    """symmetry group of the lattice"""
+
+
+    L: int
+    """number of lattice points"""
+
 
     action_dict: dict
     index_dec: dict
@@ -35,12 +41,6 @@ class Lattice:
         self.irrep_projections = decompose_set_action(self.action)
 
     def group_action(self, g: Union[GroupElement,Any], x: torch.Tensor):
-        """
-        :param g: group element of D6
-        :type g: str
-        :param x: tensor of shape (..., L)
-        :type x: torch.Tensor
-        """
         group = self.__class__.symmetry_group
         if isinstance(g, GroupElement):
             assert g.group is group, f"Group element {g} not in group {group}"
@@ -62,6 +62,12 @@ class Lattice:
 
     @property
     def points(self):
+        r"""
+        List of points in the lattice.
+
+        Returns:
+            a numpy array of shape :math:`(L, d)`, where :math:`L` is the number of lattice points and :math:`d` is the dimension of the ambient Euclidean space.
+        """
         raise NotImplementedError("Subclasses of Lattice must implement the points property")
 
     @property
@@ -83,11 +89,16 @@ class Lattice:
         """
         Show image on the lattice using colored polygons.
 
-        :param ax: ax
-        :type ax: plt.Axes
-        :param x: input image (C,L)
-        :type x: a tensor or array of shape (C,L) or (L,). If shape is (L,), a cmap must be provided.
-        :param radius_epsilon: factor by which to increase the pixel size for visualization
+        Args:
+            ax: a matplotlib Axes object to plot on
+            x: a tensor or array of shape :math:`(C,L)` or :math:`(L,)`. If shape is :math:`(L,)`, a cmap must be provided.
+            radius_eps: factor by which to increase the pixel size for visualization
+            swap_axes: whether to swap the `x` and :math:`y` axes for visualization
+            invert_y: whether to invert the `y` axis for visualization (useful for visualizing images in the usual way)
+            cmap: a matplotlib colormap to use if ``x`` has shape :math:`(L,)
+
+        Note:
+            ``invet_y`` is applied after ``swap_axes``.
         """
         verts = self.get_pixel_polygons(radius_eps=radius_eps)
         if swap_axes:

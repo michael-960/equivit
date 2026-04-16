@@ -14,6 +14,16 @@ class EquivariantMLP(nn.Module):
     EquivariantLinear -> EquivariantNonlinear -> ListDropout 
     (-> norm layer) 
     -> EquivariantLinear -> ListDropout
+
+    Args:
+        group: the symmetry group :math:`G` that we want to respect
+        dims_in: list of integers :math:`C_0, \dotsb, C_{M-1}` specifying the number of channels for each irrep in the input feature vector
+        homogeneous_space_copies: list of integers :math:`\mu_0, \dotsc, \mu_{N-1}` specifying the number of copies of each homogeneous space (used in the EquivariantNonlinear layer)
+        dims_out: list of integers :math:`C_0', \dotsb, C_{M-1}'` specifying the number of channels for each irrep in the output feature vector
+        activation: activation function to use in the EquivariantNonlinear layer
+        trivial_rep_bias: whether to include bias for the trivial representation in the EquivariantLinear layers
+        drop_probs: tuple of two dropout probabilities for the two dropout layers
+        norm_layer: normalization layer to use after the first dropout layer.
     """
     def __init__(self,
         group: Group,
@@ -25,16 +35,6 @@ class EquivariantMLP(nn.Module):
         drop_probs: Tuple[float, float] = (0.,0.),
         norm_layer = None
     ):
-        """
-        Args:
-            dims_in: list of input channels for each irrep
-            homogeneous_space_copies: list of number of copies for each homogeneous space (used in the EquivariantNonlinear layer)
-            dims_out: list of output channels for each irrep
-            activation: activation function to use in the EquivariantNonlinear layer
-            trivial_rep_bias: whether to include bias for the trivial representation in the EquivariantLinear layers
-            drop_probs: tuple of dropout probabilities for the two dropout layers
-            norm_layer: normalization layer to use after the first dropout layer.
-        """
         super().__init__()
         
         # shape: (num_homog_spaces, num_irreps)
@@ -62,9 +62,9 @@ class EquivariantMLP(nn.Module):
     def forward(self, x: List[torch.Tensor]) -> List[torch.Tensor]:
         """
         Args:
-            x: list of tensors, each of shape (*, L, Ci, di), where di is the (complex) dimension of the i-th irrep and Ci=dims_in[i]
+            x: list of tensors, each of shape :math:`(*, L, C_i, d_i)`, where :math:`d_i` is the (complex) dimension of the :math:`i`-th irrep
         Returns: 
-            list of tensors, each of shape (*, L, Ci_out, di), where Ci_out=dims_out[i]
+            list of tensors, each of shape :math:`(*, L, C_i', d_i)`
         """
         x = self.fc1(x)
         x = self.act(x)

@@ -21,11 +21,43 @@ from .utils import assert_all_not_quaternionic
 
 
 class EquivariantPatchEmbed(nn.Module):
-    """
-    Patch embedding layer that respects the symmetries of a lattice.
-    We use the irreps of the symmetry group to project the input features.
+    r"""
+    Patch embedding layer that is equivariant to a given group action.
 
-    TODO: complex-type irreps
+    Let :math:`G` be a group acting on a set :math:`X`. Let :math:`C(X,
+    \mathbb{R})` be the space of real-valued functions on :math:`X`, which is a
+    :math:`G`-representation.
+
+    Let :math:`V_0, V_1, \dotsb, V_{M-1}` be the real irreps of :math:`G`.
+
+    Choose an isomorphism :math:`\Phi` that decomposes :math:`C(X, \mathbb{R})` into irreps:
+
+    .. math::
+        \Phi: C(X, \mathbb{R}) \rightarrow \bigoplus_{i=0}^{M-1} \mathbb{R}^{D_i}\otimes V_i,
+
+    where :math:`D_i` is the multiplicity of the irrep :math:`V_i` in :math:`C(X, \mathbb{R})`.
+
+    For each irrep :math:`V_i`, let :math:`L_i\in
+    \mathrm{Hom}_G(\mathbb{R}^{D_i}\otimes V_i, \mathbb{R}^{C_i}\otimes V_i)` be
+    a learnable intertwiner. 
+
+    This layer applies the following composition to an input :math:`f\in C(X, \mathbb{R})`:
+
+    .. math::
+        C(X, \mathbb{R}) \xrightarrow{\Phi} \bigoplus_{i=0}^{M-1} \mathbb{R}^{D_i}\otimes V_i 
+        \xrightarrow{\bigoplus_i L_i} \bigoplus_{i=0}^{M-1} \mathbb{R}^{C_i}\otimes V_i.
+
+    The second map is the same as applying a :class:`EquivariantLinear` layer without bias.
+
+    Args:
+        action: a group action.
+        in_channels: an integer :math:`C` specifying the number of input channels
+        out_channels: list of integers :math:`C_0, C_1, \dotsb, C_{M-1}` specifying the number of output channels for each irrep
+        use_sparse: whether to use sparse matrices for the projection (can save memory and speed up computation for large groups, but may be slower for small groups)
+
+    Note:
+        This layer does not apply :math:`\Phi` and :math:`\bigoplus_i L_i`
+        separately, but instead computes `\bigoplus_i L_i \circ \Phi` first.
     """
     def __init__(self, 
         action: GroupAction,
@@ -34,12 +66,6 @@ class EquivariantPatchEmbed(nn.Module):
         use_sparse: bool = True,
         # streams: List[torch.cuda.Stream]=None
     ):
-        """
-        Args:
-            action: a group action.
-            in_channels: number of input channels
-            out_channels: list of output channels for each irrep
-        """
         super().__init__()
 
         assert_all_not_quaternionic(action.group)
@@ -84,15 +110,17 @@ class EquivariantPatchEmbed(nn.Module):
     def forward(self, x: torch.Tensor) -> List[torch.Tensor]:
         """
         Args:
-            x: tensor of shape (*, Lpatch, C), where Lpatch is the number of pixels in each patch and C is the number of input channels.
-        Returns: 
-            a list of tensors, each of shape (*, Ci, di),
-            where di is the dimension of each irrep and Ci is the number of output channels for that irrep.
+            x: tensor of shape :math:`(*, L, C)`, where :math:`L` is the number of pixels in each patch and :math:`C` is the number of input channels.
 
-        Note: an independent "patchification" module should be applied to the
-        input before this module to rearrange the input into patches. This
-        allows for more flexibility in the patch structure and the symmetries
-        that can be respected.
+        Returns: 
+            a list of tensors, each of shape :math:`(*, C_i, d_i)`,
+            where di is the dimension of each irrep and :math:`C_i` is the number of output channels for that irrep.
+
+        Note: 
+            An independent "patchification" module should be applied to the
+            input before this module to rearrange the input into patches. This
+            allows for more flexibility in the patch structure and the symmetries
+            that can be respected.
         """
         # 
         outs = [None for _ in range(self.proj_calc.num_irreps)]

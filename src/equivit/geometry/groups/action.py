@@ -12,13 +12,17 @@ from .representations import GroupRepresentation
 
 
 class GroupAction:
-    """
-    Group action on the set 
-    0, 1, 2, ..., n-1
+    r"""
+    Group action on the set :math:`\{0, 1, 2, ..., n-1\}`
 
-    The action is specified by a dictionary mapping each group element g to a list of integers
-        [m_0, m_1, m_2, ..., m_{n-1}],
-    meaning that i is mapped to m_i under g.
+    The action is specified by a dictionary mapping each group element :math:`g` to a list of integers
+    :math:`[m_0, m_1, m_2, ..., m_{n-1}]`, indicating that :math:`gx = m_x` for each :math:`x \in \{0, 1, 2, ..., n-1\}`.
+
+    Args:
+        group: the group that acts on the set
+        action_dict: a dictionary mapping each group element to a list of
+            integers specifying the action on the set. Each list should be a
+            permutation of :math:`[0, 1, 2, ..., n-1]`.
     """
     def __init__(self, group: Group, action_dict: Dict[GroupElement, List[int]]):
         self.group = group
@@ -41,12 +45,20 @@ class GroupAction:
                     raise ValueError(f'The action is not valid: the action of {g}*{h} is not equal to the composition of the actions of {g} and {h}.')
 
 
-    def restrict_action(self, indices):
+    def restrict_action(self, indices: List[int]) -> GroupAction:
         """
         Return the restricted action on a subset of the set.
-        
-        Return: a dictionary mapping group elements to the restricted action on the subset. 
-        Each value of the dictionary is an array of shape (m,), where m is the size of the subset.
+
+        Args:
+            indices: a list of integers specifying the indices of the subset
+                on which to restrict the action. The subset must be invariant
+                under the group action.
+
+        Returns: 
+            The restricted group action on the subset specified by indices. The
+            group is the same as the original action, and the action_dict is
+            obtained by restricting the original action_dict to the specified
+            indices. The elements are relabeled to be in the range ``[0, len(indices)-1]`` according to the order of indices.
         """
         if type(indices) is not list:
             indices = list(indices)
@@ -66,14 +78,15 @@ class GroupAction:
 
         return GroupAction(self.group, restricted_action_dict)
 
-    def to_linear_representation(self):
-        """
-        Return the a GroupRepresentation object that consists of real matrices
+    def to_linear_representation(self) -> GroupRepresentation:
+        r"""
+        Return the a :class:`GroupRepresentation` object that consists of real matrices
         of the corresponding representation on the vector space spanned by the
         set elements.
         
-        Return: a dictionary mapping group elements to representation matrices. 
-        Each value of the dictionary is a permutation matrix of shape (n, n), where n is the size of the set.
+        Returns: 
+            a dictionary mapping group elements to representation matrices. 
+            Each value of the dictionary is a permutation matrix of shape :math:`(L, L)`, where :math:`L` is the size of the set.
         """
         rep_matrices = dict()
 
@@ -87,11 +100,19 @@ class GroupAction:
 
 
     def pullback(self, homomorphism: GroupHomomorphism) -> GroupAction:
-        """
-        Given a group action G->Aut(X) and a homomorphism H->G, 
-        there is a natural action H->Aut(X), called the restriction or the pullback.
-        Note that this is different from restricting the action to a subset of X that is invariant under the subgroup H, 
-        which is implemented in the restrict_action method.
+        r"""
+        Given a group action :math:`G\rightarrow \mathrm{Aut}(X)` and a homomorphism :math:`\varphi: H\rightarrow G`, 
+        there is a natural action :math:`H\rightarrow \mathrm{Aut}(X)`, called the restriction or the pullback.
+
+        Args:
+            homomorphism: a group homomorphism :math:`\varphi: H\rightarrow G`
+        
+        Returns:
+            The pullback of the action along the homomorphism, which is a group
+            action of H on the same set X. 
+        Note:
+            This is different from restricting the action to a subset of X that is invariant under the subgroup H, 
+            which is implemented in the restrict_action method.
         """
         action_dict = dict()
         for g in homomorphism.source:
@@ -102,9 +123,10 @@ class GroupAction:
     def irrep_multiplicities(self) -> Dict[str, int]:
         """
         Return the multiplicity of each real irrep in the 
-        representation of the group on the vector space spanned functions from the set to R.
+        representation of the group on the vector space spanned functions from the set to :math:`\mathbb{R}`.
 
-        Return: a dictionary mapping each irrep name to its multiplicity in the decomposition.
+        Returns: 
+            A dictionary mapping each irrep name to its multiplicity in the decomposition.
         """
         from .utils import decompose_set_action
         projections = decompose_set_action(self)
@@ -134,6 +156,9 @@ class GroupAction:
     def is_transitive(self) -> bool:
         """
         Return True if the group action is transitive, i.e., there is only one orbit.
+
+        Returns:
+            True if the group action is transitive, False otherwise.
         """
         return len(self.orbits()) == 1
 
@@ -143,24 +168,25 @@ class GroupAction:
         representatives: List[GroupElement],
         base_point: int = 0,
     ) -> GroupRepresentation:
-        """
+        r"""
         Consider the following scenario:
-            - We have a transitive left G action on a set X.
-            - Choose a base point x_0 in X
-            - H is a normal subgroup of G that contains Stab(x_0)
-                - Note: since H is normal and the G-action is transitive, H also contains Stab(x) for all x in X.
-            - We are given an H-representation (rho, V)
+            - We have a transitive left :math:`G` action on a set :math:`X`.
+            - Choose a base point :math:`x_0` in :math:`X`
+            - H is a normal subgroup of :math:`G` that contains :math:`\mathrm{Stab}_G(x_0)`
+                - Note: since H is normal and the G-action is transitive, H also contains :math:`\mathrm{Stab}_G(x)` for all :math:`x \in X`.
+            - We are given an H-representation :math:`(rho, V)`
 
         Given this data, we can construct a G-representation on the 
-        space of functions X -> V.
+        space of functions :math:`X\rightarrow V`.
 
         Special case: if the subgroup is the whole group, then the resulting representation is just 
         the tensor product of self.to_linear_representation() and the given representation of the group.
 
-        The current implementation is extremely slow, so it should only be used for small |X| and small dim(V).
-
-        TODO: relate this to Ind_K^G(Res_K^H(V)), where K = Stab(x_0)
+        Note:
+            - The current implementation is extremely slow, so it should only be used for small :math:`|X|` and small :math:`\dim(V)`.
+            - This is superseded by :class:`equivit.geometry.EquivariantPullbackBundle`.
         """
+        # TODO: relate this to Ind_K^G(Res_K^H(V)), where K = Stab(x_0)
         assert self.is_transitive(), "Currently only transitive group actions are supported."    
         assert base_point in range(self.num_elements), f"base_point must be an integer in the range [0, {self.num_elements-1}]" 
 

@@ -9,6 +9,7 @@ from ..geometry import Group, Lattice, GroupAction
 
 from .lattice_irrep_handler import GroupActionIrrepProjectionCalculator
 
+# We should provide flexibility in whether the main model contains 
 
 
 

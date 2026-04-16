@@ -80,7 +80,7 @@ def find_irrep_components(
 
 
 
-def decompose_set_action(action: GroupAction) -> Dict[str, List[torch.sparse.FloatTensor]]:
+def decompose_set_action(action: GroupAction) -> Dict[str, List[torch.Tensor]]:
     """
     Given a group action on a set, decompose the corresponding linear representation on
     the vector space spanned by the set elements into irreps. 

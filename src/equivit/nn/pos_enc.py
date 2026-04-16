@@ -13,19 +13,25 @@ from .utils import assert_all_not_quaternionic
 
 
 class EquivariantPositionalEncoding(nn.Module):
-    """
+    r"""
     Equivariant positional encoding.
 
-    Let G be a group acting on a set X.
+    Let :math:`G` be a group acting on a set :math:`X`. Let :math:`(\rho, V)` be a :math:`G`-representation 
+    (in our case, :math:`V` is the direct sum of irreps of :math:`G`, with multiplicities given by ``dims``).
 
-    Let (rho, V) be a G-representation (in our case, V is the direct sum of irreps of G, with multiplicities given by `dims`).
+    This layer adds a learnable positional encoding :math:`f: X \rightarrow V`. 
 
-    This layer adds a learnable positional encoding f: X -> V. 
+    The positional encoding vector itself is invariant under the :math:`G`-action, i.e.
 
-    The positional encoding vector itself is invariant under the G-action, i.e.
-    f(g.x) = rho(g) f(g^{-1}.x) for all g in G, x in X.
+    .. math::
+        f(gx) = \rho(g) f(g^{-1}x) 
 
-    TODO: complex-type irreps
+    for all :math:`g \in G, x \in X`.
+
+    Args:
+        action: the lattice for which the positional encoding is defined
+        dims: list :math:`C_0, C_1, \ldots, C_{n-1}` of dimensions for each irrep in the representation V
+        use_sparse: whether to use sparse tensors for the projections (can save memory)
     """
     def __init__(
         self,  
@@ -34,9 +40,6 @@ class EquivariantPositionalEncoding(nn.Module):
         use_sparse: bool = True
     ):
         """
-        Args:
-            lattice: the lattice for which the positional encoding is defined
-            dims: list of dimensions for each irrep in the representation V
         """
         super().__init__()
         assert_all_not_quaternionic(action.group)
@@ -71,9 +74,9 @@ class EquivariantPositionalEncoding(nn.Module):
     def forward(self, x: List[torch.Tensor]) -> List[torch.Tensor]:
         """
         Args:
-            x: list of tensors, each of shape (*, L, Ci, di)
+            x: list of tensors, each of shape :math:`(*, L, C_i, d_i)`
         Returns:
-            list of tensors, each of shape (*, L, Ci, di) with positional encodings added
+            list of tensors, each of shape :math:`(*, L, C_i, d_i)` with positional encodings added
         """
         # (L, Ci, di) for each irrep
         # each tensor can be real or complex depending on the irrep type
@@ -94,6 +97,12 @@ class EquivariantInducedPositionalEncoding(nn.Module):
     """
     This is a variant of the equivariant positional encoding that uses the
     induced representation of a subgroup of the symmetry group of the lattice.
+
+    Args:
+        pullback_bundle: a :math:`G`-equivariant principal :math:`H`-bundle.
+        dims: list of dimensions for each irrep of :math:`H`.
+        use_sparse: whether to use sparse tensors for the projections (can save memory).
+
     """
     def __init__(
         self,  
@@ -106,9 +115,6 @@ class EquivariantInducedPositionalEncoding(nn.Module):
         use_sparse: bool = True
     ):
         """
-        Args:
-            pullback_bundle: a G-equivariant principal H-bundle.
-            dims: list of dimensions for each irrep of H
         """
         super().__init__()
         self.dims = dims 
@@ -154,9 +160,9 @@ class EquivariantInducedPositionalEncoding(nn.Module):
     def forward(self, x: List[torch.Tensor]) -> List[torch.Tensor]:
         """
         Args:
-            x: list of tensors, each of shape (*, L, Ci, di)
+            x: list of tensors, each of shape :math:`(*, L, C_i, d_i)`
         Returns:
-            list of tensors, each of shape (*, L, Ci, di) with positional encodings added
+            list of tensors, each of shape :math:`(*, L, C_i, d_i)` with positional encodings added
         """
         # (L, Ci, di)
         pos_enc = self.get_positional_encodings()

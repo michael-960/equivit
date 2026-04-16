@@ -12,6 +12,12 @@ class ListDropout(nn.Module):
         self.dropout = nn.Dropout(p=p, inplace=inplace)
 
     def forward(self, x: List[torch.Tensor]) -> List[torch.Tensor]:
+        """
+        Args:
+            x: list of tensors
+        Returns:
+            list of tensors of the same shapes as the input, but with dropout applied
+        """
         return [self.dropout(z) for z in x]
 
 
@@ -42,6 +48,9 @@ def list_drop_path(
 
 
 class ListDropPath(nn.Module):
+    """
+    A normal drop path layer, but it processes a list of tensors instead of a single tensor.
+    """
     def __init__(self, 
                  drop_prob: float = 0., 
                  scale_by_keep: bool = True):
@@ -49,5 +58,11 @@ class ListDropPath(nn.Module):
         self.drop_prob = drop_prob
         self.scale_by_keep = scale_by_keep
 
-    def forward(self, x):
+    def forward(self, x: List[torch.Tensor]) -> List[torch.Tensor]:
+        """
+        Args:
+            x: list of tensors, each of shape :math:`(B, *)`
+        Returns:
+            list of tensors, each of shape :math:`(B, *)`
+        """
         return list_drop_path(x, drop_prob=self.drop_prob, training=self.training, scale_by_keep=self.scale_by_keep)

@@ -11,26 +11,28 @@ from .base import Lattice, LatticeImageInterpolator
 # TODO remove HexGrid
 
 class Hexagon(Lattice):
-    """
+    r"""
     An object that keeps track of several indexing schemes of a hexaongal lattice
     restricted to a regular hexagon.
+
+    It also comes with a :D_6: group action.
 
     There are three indexing schemes:
         - flattened: lattice sites are indexed by a single integer
         - lattice sites are indexed by a tuple of two integers which correspond to
-          the coefficients of the two primal basis vectors (e_1, e_2) of the hexagonal lattice
+          the coefficients of the two primal basis vectors :math:`(e_1, e_2)` of the hexagonal lattice
         - lattice sites are indexed by a tuple of three integers which
-          correspond to the coefficients of the three vectors (e_1, e_2-e_1, -e_2). This indexing scheme
-          is redundant: both (i,j,k) and (i-a,j-a,k-a) refer to the same site
-
-          
-    :var N: side length of the hexagon
-
-    :var L: number of lattice points
+          correspond to the coefficients of the three vectors :math:`(e_1, e_2-e_1, -e_2)`. This indexing scheme
+          is redundant: both :math:`(i,j,k)` and :math:`(i-a,j-a,k-a)` refer to the same lattice site.
 
     """
 
     symmetry_group = D6
+
+    N: int
+    """side length of the hexagon"""
+
+
 
     def __init__(self, N: int, orientation: str = 'y'):
         """
@@ -42,6 +44,7 @@ class Hexagon(Lattice):
         assert orientation in ['x', 'y'], f"Invalid hexagon orientation: {orientation}"
         self.orientation = orientation
 
+        self.L: int
 
         self._setup_indices()
         self._setup_group_action()

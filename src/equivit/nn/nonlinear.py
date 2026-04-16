@@ -9,20 +9,59 @@ from .utils import assert_all_not_quaternionic
 
 
 class EquivariantNonlinear(nn.Module):
-    """
-    inverse Fourier transform -> pointwise nonlinearity -> Fourier transform
+    r"""
+    Let :math:`G` be a group. Let :math:`(\rho_i, V_i)_{i=0}^{M-1}` be the real
+    irreps of :math:`G`. 
+
+    Let :math:`X_0, X_1, \dotsb, X_{N-1}` be the homogeneous spaces of :math:`G`.
+    That is, each :math:`X_a` is a set with a transitive :math:`G`-action, and 
+    the stabilizer groups of the :math:`X_a` are all distinct (up to conjugation).
+
+    For each :math:`a`, let :math:`C(X_a, \mathbb{R})` be the vector space of
+    real-valued functions on :math:`X_a`. The natural :math:`G`-representation on :math:`C(X_a, \mathbb{R})`
+    decomposes into irreps as :math:`\Phi_{a}: C(X_a, \mathbb{R}) \rightarrow
+    \bigoplus_{i=0}^{M-1} \mathbb{R}^{\nu_i^a}\otimes V_i`, where
+    :math:`\nu_i^a` is the multiplicity of the irrep :math:`V_i` in the
+    decomposition of :math:`C(X_a, \mathbb{R})`. Fix one such isomorphism
+    :math:`\Phi_{a}` for each :math:`a`.
+
+    Fix a list of integers :math:`\mu_0, \mu_1, \dotsc, \mu_{N-1}` specifying
+    the number of copies of each homogeneous space to use in the nonlinearity.
+
+    Suppose :math:`x = (x_0, x_1, \dots, x_{M-1}) \in \bigoplus_{i=0}^{M-1} \mathbb{R}^{C_i}\otimes V_i` is
+    an input feature vector with multiplicity (number of channels) :math:`C_i` for the irrep :math:`V_i`.
+
+    Given an activation function :math:`\sigma: \mathbb{R} \to \mathbb{R}`, this 
+    layer applies the following nonlinearity to :math:`x` and returns :math:`x'` : 
+
+    .. math::
+        \begin{aligned}
+        & y_a = \Phi_a^{-1}\otimes \mathbb{1}_{\mu_a}\left(\bigoplus_{i=0}^{M-1} x_i\left[\sum_{b=0}^{a-1} \mu_b\nu_i^b : \sum_{b=0}^{a-1} \mu_b\nu_i^b + \mu_a\nu_i^a\right]\right) \in C(X_a, \mathbb{R})\otimes \mathbb{R}^{\mu_a} \\ 
+        & y_a' = \sigma(y_a) \in C(X_a, \mathbb{R})\otimes \mathbb{R}^{\mu_a} \; \text{(applied entrywise)}\\
+        & x_i' = \bigoplus_{a=0}^{N-1} [\Phi_a\otimes \mathbb{1}_{\mu_a}(y_a')]_i  \in \mathbb{R}^{C_i}\otimes V_i.
+        \end{aligned}
+
+    The map :math:`x \mapsto x'` is equivariant.
+    
+    Note: 
+        We need :math:`\sum_{a=0}^{N-1} \mu_a\nu_i^a = C_i` for each
+        :math:`i`, so that the input feature vector has enough channels to be split
+        according to the multiplicities of the irreps in the homogeneous space
+        decompositions.
+        Thus, the multiplicities :math:`C_i` are computed automatically
+        once the :math:`\mu_a` are specified. (Note that the matrix
+        :math:`(\nu_i^a)_{i,a}` is determined entirely by the group :math:`G`.
+
+    Args:
+        group: the group :math:`G` for which the equivariant nonlinearity is defined
+        homogeneous_space_copies: list of nonnegative integers :math:`\mu_0, \mu_1, \dotsc, \mu_{N-1}` specifying the number of copies for each homogeneous space
+        activation: activation function to use in the pointwise nonlinearity
     """
     def __init__(self,
         group: Group,
         homogeneous_space_copies: List[int],
         activation: Callable=nn.ReLU(),
     ):
-        """
-        Args:
-            group: the group for which the equivariant nonlinearity is defined
-            homogeneous_space_copies: list of number of copies for each homogeneous space
-            activation: activation function to use in the pointwise nonlinearity
-        """
         super().__init__()
         self.group = group
         self.num_irreps = len(group.real_irreps())
@@ -50,9 +89,11 @@ class EquivariantNonlinear(nn.Module):
             self.split_sizes.append(_)
 
     def forward(self, x: List[torch.Tensor]) -> List[torch.Tensor]:
-        """
-        x: list of tensors, each of shape (*, Ci, di), where di is the (complex) dimension of the i-th irrep
-        return: list of tensors, each of shape (*, Ci, di)
+        r"""
+        Args:
+            x: list of tensors, each of shape :math:`(*, C_i, d_i)`, where :math:`d_i` is the (complex) dimension of the :math:`i`-th irrep
+
+        Returns: list of tensors, each of shape :math:`(*, C_i, d_i)`
         """
 
         # TODO: too many for loops! optimize this

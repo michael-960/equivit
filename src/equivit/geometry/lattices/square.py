@@ -11,19 +11,22 @@ from .base import LatticeImageInterpolator
 
 
 class Square(Lattice):
-    """
+    r"""
     A square lattice restricted to a square.
 
     There are two indexing schemes:
         - flattened: lattice sites are indexed by a single integer
         - lattice sites are indexed by a tuple of two integers which correspond to
-          the coefficients of the two primal basis vectors (e_1, e_2) of the square lattice
+          the coefficients of the two primal basis vectors :math:`(e_1, e_2)` of the square lattice
 
-    :var N: side length of the hexagon
-    :var L: number of lattice points
+    Args:
+        N: number of lattice sites on a single side of the square **minus one**.
 
     """
     symmetry_group = D4
+
+    N: int
+    """side length of the square (number of lattice sites on a single side of the square **minus one**)"""
 
     def __init__(self, N: int):
         """
@@ -61,22 +64,6 @@ class Square(Lattice):
             t_action.append(self.index_enc[2][self.N-i,j])
             
         self.action = dihedral_group_action(D4, r_action=r_action, t_action=t_action)
-
-        # self.action_dict = {}
-        # for g in D4:
-        #     _dict = []
-        #     for q in range(self.L):
-        #         i,j = self.index_dec[2][q]
-        #         for x in g.word[::-1]:
-        #             if x == 'r':
-        #                 i, j = self.N-j, i
-        #             elif x == 't':
-        #                 i, j = self.N-i, j
-        #             else:
-        #                 raise ValueError(f'Invalid D4 generator: {x}')
-        #         q_new = self.index_enc[2][i,j]
-        #         _dict.append(q_new)
-        #     self.action_dict[g] = np.array(_dict, dtype=np.int64)
 
     @property
     def points(self):

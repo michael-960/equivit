@@ -10,6 +10,9 @@ if TYPE_CHECKING:
 
 
 class Group:
+    """
+    Abstract base class for groups. Specific groups should inherit from this class and implement the necessary methods.
+    """
     def __init__(self):
         self._value_element_dict = {}
         # self._element_value_dict = {}
@@ -37,6 +40,9 @@ class Group:
         return False
 
     def order(self) -> int:
+        """
+        Returns the number of elements in the group.
+        """
         return len(self)
 
     def multiply(self, g: Any, h: Any):
@@ -66,7 +72,7 @@ class Group:
         raise NotImplementedError("This method should be implemented by subclasses to return a subgroup of the group given its name.")
 
     def element_repr(self, g: GroupElement) -> str:
-        """Returns a string representation of the group element g."""
+        r"""Returns a string representation of the group element :math:`g`."""
         return f'{self.__class__.__name__}[{str(g.value)}]'
 
     def trivial_irrep(self, complex=False) -> 'GroupRepresentation':
@@ -97,7 +103,8 @@ class Group:
         be passed to the subgroup method to obtain the corresponding subgroup
         homomorphisms.
 
-        Note: two subgroups H, K are conjugate if there exists g in G such that gHg^{-1} = K.
+        Note: 
+            Two subgroups :math:`H, K` are conjugate if there exists :math:`g \in G` such that :math:`gHg^{-1} = K`.
         """
         raise NotImplementedError("This method should be implemented by subclasses to return a list of subgroups of the group, up to conjugacy.")
 
@@ -142,7 +149,7 @@ class Group:
         Return the homogeneous space actions of the group on the left cosets of all subgroups.
         If two subgroups are conjugate, then the corresponding homogeneous space actions are isomorphic, so we only return one of them.
 
-        Note: this is only implemented for finite groups (specifically for those whose subgroups_up_to_conjugacy method is implemented).
+        Note: this is only implemented for finite groups (specifically for those whose :meth:`subgroups_up_to_conjugacy` method is implemented).
         """
         assert self.is_finite(), "all_homogeneous_space_actions is only implemented for finite groups."
 
@@ -235,31 +242,45 @@ class GroupHomomorphism:
         assert h.group is self.target
         return h
 
-    def compose(self, f: GroupHomomorphism) -> GroupHomomorphism:
+    def compose(self, f1: GroupHomomorphism) -> GroupHomomorphism:
         """
-        self \circ f
+        The composition of the homomorphism with another homomorphism f1.
+
+        Args:
+            f1: group homomorphism whose target is the same as the source of ``self``.
+
+        Returns:
+            :math:`f \circ f_1`, where :math:`f` is the homomorphism represented by ``self``.
         """
-        assert f.target is self.source, f"Source of the second morphism ({self.source}) must coincide with the target of the first morphism ({f.target})."
+        assert f1.target is self.source, f"Source of the second morphism ({self.source}) must coincide with the target of the first morphism ({f1.target})."
 
         def mapping(g):
-            return self(f(g))
-
-        return GroupHomomorphism(f.source, self.target, mapping)
+            return self(f1(g))
+    
+        return GroupHomomorphism(f1.source, self.target, mapping)
 
     def is_injective(self) -> bool:
+        """
+        Check whether the homomorphism is injective.
+
+        Returns:
+            True if the homomorphism is injective, False otherwise.
+        """
         image = [self(g) for g in self.source]
         return len(set(image)) == len(image)
 
     def validate(self, g: GroupElement, h: GroupElement) -> bool:
         """
-        Check whether f(gh) = f(g)f(h).
+        Check whether :math:`f(gh) = f(g)f(h)`.
         """
         return self(g) * self(h) is self(g * h)
 
     def validate_all(self):
         """
         Check the homomorphism property for all pairs of elements in the source group.
-        Note: this is only possible for finite groups.
+
+        Note: 
+            This is only possible for finite groups.
         """
         assert len(self.source) > 0, "Cannot validate homomorphism property for infinite groups"
         for g in self.source:
