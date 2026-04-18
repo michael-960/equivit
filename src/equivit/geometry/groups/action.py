@@ -1,11 +1,14 @@
 from __future__ import annotations
 from enum import Enum
 import numpy as np
-from typing import Dict, List
+from typing import Dict, List, Any, Union, overload, TYPE_CHECKING
 
 from .base import Group, GroupElement, GroupHomomorphism
 
 from .representations import GroupRepresentation
+
+if TYPE_CHECKING:
+    import torch
 
 # Group actions and representations
 
@@ -161,6 +164,38 @@ class GroupAction:
             True if the group action is transitive, False otherwise.
         """
         return len(self.orbits()) == 1
+
+    @overload
+    def act_on_function(self, g: GroupElement, x: torch.Tensor, dim: int=-1) -> torch.Tensor: ...
+
+    @overload
+    def act_on_function(self, g: Any, x: np.ndarray, dim: int=-1) -> np.ndarray: ... 
+
+    def act_on_function(self, g: Union[GroupElement,Any], x, dim: int=-1):
+        r"""
+        Natural :math:`G`-action on the vector space of functions :math:`X\rightarrow \mathbb{R}` given by
+        
+        .. math:: 
+            (g\cdot f)(x) = f(g^{-1}x)
+        """
+        if isinstance(g, GroupElement):
+            assert g.group is self.group, f"Group element {g} not in group {self.group}"
+        else:
+            g = self.group[g]
+
+        ind_dict = self.action(g.inv())
+
+        if dim < 0:
+            dim = len(x.shape) + dim
+
+        slices = [slice(None)]*len(x.shape)
+        slices[dim] = ind_dict
+
+        y = x[tuple(slices)]
+
+        return y
+
+
 
     def induce_from(self, 
         subgroup_args: tuple, 

@@ -1,10 +1,11 @@
 import torch
-from typing import Type, Union, ClassVar, Any, Annotated
+from typing import Type, Union, ClassVar, Any, Annotated, overload
 from ..groups import Group, decompose_set_action, TRIVIAL_GROUP, GroupAction, GroupElement
 import numpy as np
 
 import matplotlib.pyplot as plt
 from matplotlib.collections import PolyCollection
+
 
 
 class Lattice:
@@ -30,26 +31,33 @@ class Lattice:
     index_enc: dict
 
     action: GroupAction
+    """group action of the symmetry group on the lattice points"""
 
-    def compute_irrep_projections(self):
-        """
-        Compute the irreducible representations of the actin of the symmetry group on the lattice.
-        """
-        # self.irrep_projections = decompose_set_action(
-        #     self.action_dict, self.__class__.symmetry_group
-        # )
-        self.irrep_projections = decompose_set_action(self.action)
+    # def compute_irrep_projections(self):
+    #     """
+    #     Compute the irreducible representations of the action of the symmetry group on the lattice.
+    #     """
+    #     self.irrep_projections = decompose_set_action(self.action)
 
-    def group_action(self, g: Union[GroupElement,Any], x: torch.Tensor):
-        group = self.__class__.symmetry_group
-        if isinstance(g, GroupElement):
-            assert g.group is group, f"Group element {g} not in group {group}"
-        else:
-            g = group[g]
+    def group_action(self, g: Union[GroupElement,Any], x):
+        raise RuntimeError("group action on functions is now handled by self.action.act_on_function")
+    #     group = self.symmetry_group
+    #     if isinstance(g, GroupElement):
+    #         assert g.group is group, f"Group element {g} not in group {group}"
+    #     else:
+    #         g = group[g]
 
-        ind_dict = self.action(g.inv())
-        y = x[...,ind_dict]
-        return y
+    #     ind_dict = self.action(g.inv())
+
+    #     if dim < 0:
+    #         dim = len(x.shape) + dim
+
+    #     slices = [slice(None)]*len(x.shape)
+    #     slices[dim] = ind_dict
+
+    #     y = x[tuple(slices)]
+
+    #     return y
 
     def get_points_from_basis(self, basis_vectors: Union[np.ndarray,list]):
         E = np.array(basis_vectors)

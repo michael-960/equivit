@@ -35,3 +35,9 @@ Lattices
 
 :doc:`geometry/square`
 
+
+Patched Lattices
+----------------
+:doc:`geometry/patched_lattice`
+
+:doc:`geometry/patched_lattice.honey_triangle`

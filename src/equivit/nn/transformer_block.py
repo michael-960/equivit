@@ -12,6 +12,33 @@ from .drop import ListDropout, ListDropPath
 from .mlp import EquivariantMLP
 
 
+@dataclass
+class EquivariantTransformerBlockConfig:
+    group: Group = None
+    dims: List[int] = None
+    num_heads: Union[int, List[int]] = None
+
+    homogeneous_space_copies: List[int] = None # for nonlinearity in MLP
+
+    attn_type: Literal['irrepwise', 'coupled'] = 'irrepwise' # only support 'irrepwise' for now
+    trivial_rep_attn_bias: bool = True
+    attn_drop: float = 0.
+    trivial_rep_proj_bias: bool = True
+    proj_drop: float = 0.
+
+    trivial_rep_mlp_bias: bool = True
+    mlp_drop_probs: Tuple[float, float] = (0.,0.)
+
+    ls_init_values=None
+    # norm_layer: Callable = None, 
+    drop_path: float=0.
+
+    def validate(self):
+        assert None not in [self.group, self.dims, self.num_heads, self.homogeneous_space_copies]
+
+
+
+
 class EquivariantTransformerBlock(nn.Module):
     """
     The layer applies the following operations in sequence:
@@ -27,87 +54,89 @@ class EquivariantTransformerBlock(nn.Module):
 
     Everything is equivariant.
     """
-    def __init__(self, 
-        group: Group,
-        dims: List[int],
-        num_heads: Union[int, List[int]],
+    def __init__(self, config: EquivariantTransformerBlockConfig):
+    #     group: Group,
+    #     dims: List[int],
+    #     num_heads: Union[int, List[int]],
 
-        homogeneous_space_copies: List[int], # for nonlinearity in MLP
+    #     homogeneous_space_copies: List[int], # for nonlinearity in MLP
 
-        attn_type: Literal['irrepwise', 'coupled'] = 'irrepwise', # only support 'irrepwise' for now
-        trivial_rep_attn_bias: bool = True,
-        attn_drop: float = 0.,
-        trivial_rep_proj_bias: bool = True,
-        proj_drop: float = 0.,
+    #     attn_type: Literal['irrepwise', 'coupled'] = 'irrepwise', # only support 'irrepwise' for now
+    #     trivial_rep_attn_bias: bool = True,
+    #     attn_drop: float = 0.,
+    #     trivial_rep_proj_bias: bool = True,
+    #     proj_drop: float = 0.,
 
-        trivial_rep_mlp_bias: bool = True,
-        mlp_drop_probs: Tuple[float, float] = (0.,0.),
+    #     trivial_rep_mlp_bias: bool = True,
+    #     mlp_drop_probs: Tuple[float, float] = (0.,0.),
 
-        ls_init_values=None,
-        # norm_layer: Callable = None, 
-        drop_path: float=0.
-    ):
+    #     ls_init_values=None,
+    #     # norm_layer: Callable = None, 
+    #     drop_path: float=0.
+    # ):
         super().__init__()
 
-        self.dims = dims
-        self.norm1 = EquivariantLayerNorm(dims)
+        config.validate()
 
-        if attn_type == 'irrepwise':
-            assert isinstance(num_heads, list), "num_heads should be a list of the same length as dims for irrepwise attention"
+        self.dims = config.dims
+        self.norm1 = EquivariantLayerNorm(config.dims)
+
+        if config.attn_type == 'irrepwise':
+            assert isinstance(config.num_heads, list), "num_heads should be a list of the same length as dims for irrepwise attention"
             self.attn = EquivariantIrrepwiseAttention(
-                            group=group,
-                            dims=dims,
-                            num_heads=num_heads,
-                            trivial_rep_attn_bias=trivial_rep_attn_bias,
-                            trivial_rep_proj_bias=trivial_rep_proj_bias,
-                            attn_drop=attn_drop,
-                            proj_drop=proj_drop
+                            group=config.group,
+                            dims=config.dims,
+                            num_heads=config.num_heads,
+                            trivial_rep_attn_bias=config.trivial_rep_attn_bias,
+                            trivial_rep_proj_bias=config.trivial_rep_proj_bias,
+                            attn_drop=config.attn_drop,
+                            proj_drop=config.proj_drop
                         )
-        elif attn_type == 'coupled':
-            assert isinstance(num_heads, int), "num_heads should be an integer for coupled attention"
+        elif config.attn_type == 'coupled':
+            assert isinstance(config.num_heads, int), "num_heads should be an integer for coupled attention"
             self.attn = EquivariantCoupledAttention(
-                            group=group,
-                            dims=dims,
-                            num_heads=num_heads,
-                            trivial_rep_attn_bias=trivial_rep_attn_bias,
-                            trivial_rep_proj_bias=trivial_rep_proj_bias,
-                            attn_drop=attn_drop,
-                            proj_drop=proj_drop
+                            group=config.group,
+                            dims=config.dims,
+                            num_heads=config.num_heads,
+                            trivial_rep_attn_bias=config.trivial_rep_attn_bias,
+                            trivial_rep_proj_bias=config.trivial_rep_proj_bias,
+                            attn_drop=config.attn_drop,
+                            proj_drop=config.proj_drop
                         )
 
-        if ls_init_values is not None:
-            self.ls1 = ListLayerScale(dims, init_values=ls_init_values)
+        if config.ls_init_values is not None:
+            self.ls1 = ListLayerScale(config.dims, init_values=config.ls_init_values)
         else:
             self.ls1 = nn.Identity()
-        self.drop_path_1 = ListDropPath(drop_path) if drop_path > 0. else nn.Identity()
+        self.drop_path_1 = ListDropPath(config.drop_path) if config.drop_path > 0. else nn.Identity()
 
-        self.norm2 = EquivariantLayerNorm(dims)
+        self.norm2 = EquivariantLayerNorm(config.dims)
 
         self.mlp = EquivariantMLP(
-            group,
-            dims_in=dims,
-            homogeneous_space_copies=homogeneous_space_copies,
-            dims_out=dims,
-            trivial_rep_bias=trivial_rep_mlp_bias,
-            drop_probs=mlp_drop_probs,
+            config.group,
+            dims_in=config.dims,
+            homogeneous_space_copies=config.homogeneous_space_copies,
+            dims_out=config.dims,
+            trivial_rep_bias=config.trivial_rep_mlp_bias,
+            drop_probs=config.mlp_drop_probs,
             norm_layer=None
         )
 
-        if ls_init_values is not None:
-            self.ls2 = ListLayerScale(dims, init_values=ls_init_values)
+        if config.ls_init_values is not None:
+            self.ls2 = ListLayerScale(config.dims, init_values=config.ls_init_values)
         else:
             self.ls2 = nn.Identity()
-        self.drop_path_2 = ListDropPath(drop_path) if drop_path > 0. else nn.Identity()
+        self.drop_path_2 = ListDropPath(config.drop_path) if config.drop_path > 0. else nn.Identity()
 
-        self.sample_drop_ratio = drop_path
+        self.sample_drop_ratio = config.drop_path
 
 
     def forward(self, x: List[torch.Tensor]) -> List[torch.Tensor]:
-        """
+        r"""
         Args:
-            x: list of tensors, each of shape (*, L, Ci, di), where di is the dimension of the i-th irrep
+            x: list of tensors, each of shape :math:`(*, L, C_i, d_i)`, where :math:`d_i` is the complex dimension of the :math:`i`-th irrep
         Returns: 
-            list of tensors, each of shape (*, L, Ci, di)
+            list of tensors, each of shape :math:`(*, L, C_i, d_i)`
         """
         if self.training and self.sample_drop_ratio > 0.:
             y = self.drop_path_1(self.ls1(self.attn(self.norm1(x))))

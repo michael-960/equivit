@@ -4,7 +4,7 @@ import pytest
 
 
 @pytest.mark.parametrize("n", list(range(1, 20)))
-def test_cycclic_groups(n):
+def test_cyclic_groups(n):
     G = equivit.geometry.CyclicGroup(n)
 
     assert G.order() == n

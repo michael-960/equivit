@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 from typing import List, Tuple
 
-from ..geometry import Lattice, Group, AdvancedLattice, GroupElement, GroupAction, IrrepType, EquivariantPullbackBundle
+from ..geometry import Lattice, Group, GroupElement, GroupAction, IrrepType, EquivariantPullbackBundle
 from .lattice_irrep_handler import GroupActionIrrepProjectionCalculator, InducedRepresentationInvariantSubspaceCalculator
 
 from .utils import assert_all_not_quaternionic

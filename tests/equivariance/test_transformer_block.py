@@ -26,11 +26,13 @@ def test_irrepwise_block(group: equivit.geometry.Group):
     homog_copies = [torch.randint(3, 16, ()).item() for _ in group.all_homogeneous_space_actions()]
 
     block = equivit.nn.EquivariantTransformerBlock(
-        group=group,
-        dims=dims, 
-        homogeneous_space_copies=homog_copies,
-        num_heads=num_heads,
-        attn_type='irrepwise',
+        equivit.nn.EquivariantTransformerBlockConfig(
+            group=group,
+            dims=dims, 
+            homogeneous_space_copies=homog_copies,
+            num_heads=num_heads,
+            attn_type='irrepwise',
+        )
     )
 
     for _ in range(4): # test 4 random inputs
@@ -63,11 +65,13 @@ def test_coupled_block(group: equivit.geometry.Group):
     homog_copies = [torch.randint(3, 16, ()).item() for _ in group.all_homogeneous_space_actions()]
 
     block = equivit.nn.EquivariantTransformerBlock(
-        group=group,
-        dims=dims, 
-        homogeneous_space_copies=homog_copies,
-        num_heads=num_heads,
-        attn_type='coupled',
+        equivit.nn.EquivariantTransformerBlockConfig(
+            group=group,
+            dims=dims, 
+            homogeneous_space_copies=homog_copies,
+            num_heads=num_heads,
+            attn_type='coupled',
+        )
     )
 
     for _ in range(4): # test 4 random inputs

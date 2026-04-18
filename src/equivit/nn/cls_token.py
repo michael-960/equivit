@@ -7,21 +7,23 @@ from timm.layers import trunc_normal_
 
 class AppendClassToken(nn.Module):
     """
-    This layer appends a learnable class token to the input sequence for the trivial representation, and pads zeros for the non-trivial representations.
+    This layer appends a learnable class token to the input sequence for the
+    trivial representation, and pads zeros for the non-trivial representations.
+
+    Args:
+        dim: number of channels for the trivial representation (the first irrep).
     """
     def __init__(self, 
         dim: int,
-        # streams: List[torch.cuda.Stream]=None
     ):
-        """
-        Args:
-            dim: number of channels for the trivial representattion (the first irrep).
-        """
         super().__init__()
         self.dim = dim
 
         self.cls_token = nn.Parameter(torch.zeros(1, dim, 1), requires_grad=True)
 
+        self.reset_parameters()
+
+    def reset_parameters(self):
         # TODO: In general, I'm not sure what the best initilization scheme is. 
         std = 4*.02
         trunc_normal_(self.cls_token , std=std)
@@ -29,11 +31,9 @@ class AppendClassToken(nn.Module):
     def forward(self, x: List[torch.Tensor]) -> List[torch.Tensor]:
         """
         Args:
-            x: list of tensors, each of shape (*, L, Ci, di) for each irrep
+            x: list of tensors, each of shape :math:`(*, L, C_i, d_i)` for each irrep
         Returns: 
-            list of tensors, each of shape (*, L+1, Ci, di)
-
-        note: d0 = 1 because the trivial representation is one-dimensional
+            list of tensors, each of shape :math:`(*, L+1, C_i, d_i)`
         """
         y = []
         
@@ -46,7 +46,11 @@ class AppendClassToken(nn.Module):
 
 
 
-class ExtractClassToken(nn.Module):
-    def forward(self, x: torch.Tensor):
-        return x[...,-1,:,:]
+# class ExtractClassToken(nn.Module):
+#     def forward(self, x: torch.Tensor):
+#         """
+#         Args:
+#             x: tensor of shape :math:`(*, L+1, C_i, d_i)` for each irrep
+#         """
+#         return x[...,-1,:,:]
         

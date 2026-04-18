@@ -90,3 +90,6 @@ class Square(Lattice):
     def get_interpolator(self):
         offset = [0., 0.]
         return LatticeImageInterpolator(self, img_size=[self.N+1, self.N+1], offset=offset)
+
+    def __repr__(self):
+        return f'Square(N={self.N})'

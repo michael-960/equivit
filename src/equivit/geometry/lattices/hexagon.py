@@ -7,6 +7,8 @@ from typing import Union, cast, TYPE_CHECKING
 
 from .base import Lattice, LatticeImageInterpolator
 
+from ..._core import FunctionDict
+
 
 # TODO remove HexGrid
 
@@ -51,8 +53,8 @@ class Hexagon(Lattice):
 
     def _setup_indices(self):
         # dictionaries for index conversion
-        self.index_enc = {1: dict(), 2: dict(), 3: dict()}
-        self.index_dec = {1: dict(), 2: dict(), 3: dict()}
+        self.index_enc = {2: dict()}
+        self.index_dec = {2: dict()}
 
         _q = 0
         for i in range(-self.N, self.N+1):
@@ -61,23 +63,45 @@ class Hexagon(Lattice):
                     self.index_enc[2][i, j] = _q
                     self.index_dec[2][_q] = (i, j)
 
-                    self.index_enc[1][_q] = _q
-                    self.index_dec[1][_q] = _q
+                    # self.index_enc[1][_q] = _q
+                    # self.index_dec[1][_q] = _q
                     _q += 1
 
         # number of lattice points
         self.L = _q
 
-        # TODO: this is O(N^3), we should fix this
+        def _3t1(abc):
+            a, b, c = abc
+            i, j = a - b, b - c
 
-        for a in range(-self.N,self.N+1):
-            for b in range(-self.N,self.N+1):
-                for c in range(-self.N,self.N+1):
-                    i, j = a-b, b-c
-                    if -self.N <= i + j <= self.N and -self.N <= i <= self.N and -self.N <= j <= self.N:
-                        q = self.index_enc[2][i,j]
-                        self.index_enc[3][a,b,c] = q
-                        self.index_dec[3][q] = (a,b,c)
+            if -self.N <= i + j <= self.N and -self.N <= i <= self.N and -self.N <= j <= self.N:
+                return self.index_enc[2][i, j]
+            else:
+                raise ValueError(f'Invalid hexagon 3-index: {abc}') 
+
+        self.index_enc[3] = FunctionDict(_3t1)
+
+        def _1t3(q):
+            assert q in range(self.L), f'Invalid hexagon flattened index: {q}'
+            i, j = self.index_dec[2][q]
+            a = i + j
+            b = j
+            c = 0
+            return (a, b, c)
+        
+        self.index_dec[3] = FunctionDict(_1t3)
+
+        # this is the old O(N^3) way to set up the 3-index encoding and decoding.
+        # we keep this for now for reference, but it is not used in the code anymore since it is too slow for large N.
+
+        # for a in range(-self.N,self.N+1):
+        #     for b in range(-self.N,self.N+1):
+        #         for c in range(-self.N,self.N+1):
+        #             i, j = a-b, b-c
+        #             if -self.N <= i + j <= self.N and -self.N <= i <= self.N and -self.N <= j <= self.N:
+        #                 q = self.index_enc[2][i,j]
+        #                 self.index_enc[3][a,b,c] = q
+        #                 self.index_dec[3][q] = (a,b,c)
 
     def _setup_group_action(self):
         r_action = []
@@ -87,7 +111,7 @@ class Hexagon(Lattice):
             r_action.append(self.index_enc[3][-b,-c,-a])
             t_action.append(self.index_enc[3][-a,-c,-b])
             
-        self.action =dihedral_group_action(D6, r_action=r_action, t_action=t_action)
+        self.action = dihedral_group_action(D6, r_action=r_action, t_action=t_action)
 
         # self.action_dict = {}
 
@@ -139,4 +163,5 @@ class Hexagon(Lattice):
         return LatticeImageInterpolator(self, img_size=[self.N*2, self.N*2], offset=offset)
 
 
-
+    def __repr__(self):
+        return f'Hexagon(N={self.N}, orientation={self.orientation})'

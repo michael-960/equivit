@@ -1,5 +1,7 @@
 from .pos_enc import EquivariantPositionalEncoding, EquivariantInducedPositionalEncoding
 from .patch_embed import EquivariantPatchEmbed
+from .cls_token import AppendClassToken
+
 from .nonlinear import Fourier, EquivariantNonlinear
 from .linear import EquivariantLinear
 from .mlp import EquivariantMLP
@@ -8,7 +10,7 @@ from .mlp import EquivariantMLP
 # from .lattice_irrep_handler import GroupActionIrrepProjectionCalculator, InducedRepresentationInvariantSubspaceCalculator
 
 from .attn import EquivariantIrrepwiseAttention, EquivariantCoupledAttention
-from .transformer_block import EquivariantTransformerBlock
+from .transformer_block import EquivariantTransformerBlock, EquivariantTransformerBlockConfig
 
 
 from .drop import ListDropout, ListDropPath

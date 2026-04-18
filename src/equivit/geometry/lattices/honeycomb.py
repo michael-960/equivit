@@ -8,7 +8,7 @@ from typing import Union, cast, TYPE_CHECKING
 
 from .base import Lattice
 
-from .advanced import AdvancedLattice
+from ..._core import FunctionDict
 
 
 class Honeycomb(Lattice):
@@ -18,21 +18,22 @@ class Honeycomb(Lattice):
     There are four indexing schemes:
 
     Args:
-        N: number of layers of the honeycomb
+        N: number of layers of the honeycomb (must be a positive integer)
     """
     symmetry_group = D6
 
     N: int
     """number of layers of the honeycomb"""
     def __init__(self, N: int):
+        assert N > 0, "N must be a positive integer"
         self.N = N
 
         self._setup_indices()
         self._setup_group_action()
 
     def _setup_indices(self):
-        self.index_enc = {1: dict(), 2: dict(), 3: dict(), 4: dict()}
-        self.index_dec = {1: dict(), 2: dict(), 3: dict(), 4: dict()}
+        self.index_enc = {2: dict(), 4: dict()}
+        self.index_dec = {2: dict(), 4: dict()}
 
         N = self.N
 
@@ -67,22 +68,42 @@ class Honeycomb(Lattice):
         assert self.L % 2 == 0
         # self.La = _q // 2 # this is still used somewhere else, maybe we can fix it
 
-        for q in range(self.L):
-            self.index_enc[1][q] = q
-            self.index_dec[1][q] = q
+        # for q in range(self.L):
+        #     self.index_enc[1][q] = q
+        #     self.index_dec[1][q] = q
+
+        def _3t1(abc):
+            a, b, c = abc
+            i, j = a - b, b - c
+
+            if -3*self.N <= i + j <= 3*self.N and -3*self.N <= i <= 3*self.N and -3*self.N <= j <= 3*self.N:
+                return self.index_enc[2][i, j]
+            else:
+                raise ValueError(f'Invalid honeycomb 3-index: {abc}') 
+
+        self.index_enc[3] = FunctionDict(_3t1)
+
+        def _1t3(q):
+            assert q in range(self.L), f'Invalid honeycomb flattened index: {q}'
+            i, j = self.index_dec[2][q]
+            a = i + j
+            b = j
+            c = 0
+            return (a, b, c)
         
+        self.index_dec[3] = FunctionDict(_1t3)
 
-        for a in range(-3*N, 3*N+1):
-            for b in range(-3*N, 3*N+1):
-                for c in range(-3*N, 3*N+1):
-                    i, j = a-b, b-c
-                    if ((i-j)%3==0) and (i%3 != 0):
-                        if -3*N <= i + j <= 3*N and -3*N <= i <= 3*N and -3*N <= j <= 3*N:
-                            self.index_enc[3][a,b,c] = self.index_enc[2][i,j]
+        # for a in range(-3*N, 3*N+1):
+        #     for b in range(-3*N, 3*N+1):
+        #         for c in range(-3*N, 3*N+1):
+        #             i, j = a-b, b-c
+        #             if ((i-j)%3==0) and (i%3 != 0):
+        #                 if -3*N <= i + j <= 3*N and -3*N <= i <= 3*N and -3*N <= j <= 3*N:
+        #                     self.index_enc[3][a,b,c] = self.index_enc[2][i,j]
 
-        for q in range(self.L):
-            i,j = self.index_dec[2][q]
-            self.index_dec[3][q] = (i+j,j,0)
+        # for q in range(self.L):
+        #     i,j = self.index_dec[2][q]
+        #     self.index_dec[3][q] = (i+j,j,0)
 
     def _setup_group_action(self):
         r_action = []
@@ -125,36 +146,39 @@ class Honeycomb(Lattice):
         # absolute vertex coordinates of the triangular pixels
         verts = self.points[:,None,:] + triverts 
         return verts
+    
+    def __repr__(self):
+        return f'Honeycomb(N={self.N})'
 
 
 
-class AdvancedHoneycomb(Honeycomb, AdvancedLattice):
-    """
-    Experimental.
-    """
-    def __init__(self, N: int):
-        super().__init__(N) 
+# class AdvancedHoneycomb(Honeycomb, AdvancedLattice):
+#     """
+#     Experimental.
+#     """
+#     def __init__(self, N: int):
+#         super().__init__(N) 
 
-        self.subgroup_incl = self.symmetry_group.subgroup('D', 3, 0)
-        self.subgroup = self.subgroup_incl.source
+#         self.subgroup_incl = self.symmetry_group.subgroup('D', 3, 0)
+#         self.subgroup = self.subgroup_incl.source
 
-        self.coset_representatives = [self.symmetry_group.from_value((0,0)),  # identity
-                                      self.symmetry_group.from_value((0,3))   # r^3
-                                      ]
+#         self.coset_representatives = [self.symmetry_group.from_value((0,0)),  # identity
+#                                       self.symmetry_group.from_value((0,3))   # r^3
+#                                       ]
 
-        # For each G-orbit O, we need to choose a specific H-orbit
-        # This is done by choosing a specific base point x_0 in O
+#         # For each G-orbit O, we need to choose a specific H-orbit
+#         # This is done by choosing a specific base point x_0 in O
 
 
-        self.orbits = self.action.orbits()
-        self.base_points = []
+#         self.orbits = self.action.orbits()
+#         self.base_points = []
 
-        for orbit in self.orbits:
-            q = orbit[0]
+#         for orbit in self.orbits:
+#             q = orbit[0]
 
-            # This should be taken care of by the orbits() method
-            assert self.index_dec[4][q][0] == 0, "The base point must be of type a"
-            self.base_points.append(q)
+#             # This should be taken care of by the orbits() method
+#             assert self.index_dec[4][q][0] == 0, "The base point must be of type a"
+#             self.base_points.append(q)
 
 
 
