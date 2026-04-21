@@ -10,7 +10,7 @@ from ..geometry import Group
 
 
 class EquivariantMLP(nn.Module):
-    """
+    r"""
     EquivariantLinear -> EquivariantNonlinear -> ListDropout 
     (-> norm layer) 
     -> EquivariantLinear -> ListDropout
@@ -36,6 +36,11 @@ class EquivariantMLP(nn.Module):
         norm_layer = None
     ):
         super().__init__()
+
+        _num_irreps = len(group.real_irreps())
+        assert len(dims_in) == _num_irreps, f"Length of dims_in ({len(dims_in)}) must be equal to the number of real irreps of the group ({_num_irreps})"
+        assert len(dims_out) == _num_irreps, f"Length of dims_in ({len(dims_out)})must be equal to the number of real irreps of the group ({_num_irreps})"
+        assert len(homogeneous_space_copies) == len(group.all_homogeneous_space_actions()), f"Length of homogeneous_space_copies ({len(homogeneous_space_copies)}) must be equal to the number of homogeneous space actions of the group ({len(group.all_homogeneous_space_actions())})"
         
         # shape: (num_homog_spaces, num_irreps)
         self.multipilcity_matrix = np.array([list(action.irrep_multiplicities().values()) for action in group.all_homogeneous_space_actions()])

@@ -33,32 +33,6 @@ class Lattice:
     action: GroupAction
     """group action of the symmetry group on the lattice points"""
 
-    # def compute_irrep_projections(self):
-    #     """
-    #     Compute the irreducible representations of the action of the symmetry group on the lattice.
-    #     """
-    #     self.irrep_projections = decompose_set_action(self.action)
-
-    def group_action(self, g: Union[GroupElement,Any], x):
-        raise RuntimeError("group action on functions is now handled by self.action.act_on_function")
-    #     group = self.symmetry_group
-    #     if isinstance(g, GroupElement):
-    #         assert g.group is group, f"Group element {g} not in group {group}"
-    #     else:
-    #         g = group[g]
-
-    #     ind_dict = self.action(g.inv())
-
-    #     if dim < 0:
-    #         dim = len(x.shape) + dim
-
-    #     slices = [slice(None)]*len(x.shape)
-    #     slices[dim] = ind_dict
-
-    #     y = x[tuple(slices)]
-
-    #     return y
-
     def get_points_from_basis(self, basis_vectors: Union[np.ndarray,list]):
         E = np.array(basis_vectors)
 
@@ -158,10 +132,13 @@ class LatticeImageInterpolator:
         if type(img_size) not in [tuple, list]:
             img_size = (img_size, img_size)
 
-
         self.lattice = lattice
         self.offset = np.array(offset)
-        self.img_size =img_size 
+
+        if (not isinstance(img_size, list)) and (not isinstance(img_size, tuple)): 
+            img_size = (img_size, img_size)
+        self.img_size = img_size 
+
         self.setup_interpolation()
 
     def setup_interpolation(self):

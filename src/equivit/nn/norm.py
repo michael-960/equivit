@@ -6,7 +6,7 @@ from typing import Union, List
 
 # adapted from octic-vit
 class ListLayerScale(nn.Module):
-    """
+    r"""
     This is the same as :class:`ListAffine` but without the bias term. 
 
     Args:

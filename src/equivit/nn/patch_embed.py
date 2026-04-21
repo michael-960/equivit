@@ -122,8 +122,8 @@ class EquivariantPatchEmbed(nn.Module):
             allows for more flexibility in the patch structure and the symmetries
             that can be respected.
         """
-        # 
-        outs = [None for _ in range(self.proj_calc.num_irreps)]
+
+        outs: List = [None for _ in range(self.proj_calc.num_irreps)]
 
         x = x.flatten(-2) # (*, Lpatch*C)
 

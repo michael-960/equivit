@@ -6,7 +6,7 @@ from ...._core import FunctionDict
 from ..hexagon import Hexagon
 from ... import dihedral_group_action, D6
 
-class Hexhex(PatchedLattice):
+class HexPatches(PatchedLattice):
     def __init__(self, N1: int, N2: int, patch_orientation='x', glue: bool=True):
 
         assert patch_orientation in ['x', 'y'], f'Invalid patch orientation: {patch_orientation}'
@@ -78,14 +78,36 @@ class Hexhex(PatchedLattice):
         for q in range(self.L):
             a, b, c = self.index_dec[3][q]
             r_action.append(self.index_enc[3][-b,-c,-a])
-            t_action.append(self.index_enc[3][-a,-c,-b])
+            # t_action.append(self.index_enc[3][-a,-c,-b])
+            if self.hex2.orientation == 'x':
+                t_action.append(self.index_enc[3][a, c, b])
+            else:
+                t_action.append(self.index_enc[3][-b,-a,-c])
             
         self.action = dihedral_group_action(D6, r_action=r_action, t_action=t_action)
 
     @property
     def points(self):
-        e1 = np.array([np.sqrt(3),1.])/2
-        e2 = np.array([0,1.])
+        if self.hex2.orientation == 'x':
+            e1 = np.array([1.,0])
+            e2 = np.array([1.,np.sqrt(3)])/2
+        else:
+            e1 = np.array([np.sqrt(3),1.])/2
+            e2 = np.array([0,1.])
         return self.get_points_from_basis([e1, e2])
 
- 
+    def get_pixel_polygons(self, radius_eps=None):
+        """
+        Vertices of the hexagonal pixels centered at the lattice sites. 
+        """
+        if radius_eps is None: radius_eps = -0.01
+        r = 1 / np.sqrt(3) * (1+radius_eps)
+
+        rot = 1 if self.hex2.orientation == 'x' else 0
+
+        theta = np.linspace(.5*rot/6*np.pi*2, (6+.5*rot)/6*np.pi*2, 7)
+        verts = np.array(
+            [self.points[:,None,0] + r*np.cos(theta), 
+             self.points[:,None,1] + r*np.sin(theta)]
+            ).transpose(1,2,0)
+        return verts

@@ -1,4 +1,4 @@
-from .base import Lattice
+from .base import Lattice, LatticeImageInterpolator
 
 from .hexagon import Hexagon
 from .triangle import Triangle

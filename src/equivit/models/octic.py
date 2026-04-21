@@ -14,7 +14,7 @@ from .. import nn as eqnn
 
 
 @dataclass
-class ViTBackboneConfig:
+class OcticViTBackboneConfig:
     img_size: int # size of input image (assumed to be square)
     patch_size: int # number of trinagular patches on each side
 
@@ -33,10 +33,8 @@ class ViTBackboneConfig:
 
 
 
-
-
-class ViTBackbone(nn.Module):
-    def __init__(self, config: ViTBackboneConfig):
+class OcticViTBackbone(nn.Module):
+    def __init__(self, config: OcticViTBackboneConfig):
         super().__init__()
         # eqnn.EquivariantPatchEmbed()
         assert config.img_size % config.patch_size == 0, f'Image size {config.img_size} must be divisible by patch size {config.patch_size}'
@@ -47,10 +45,17 @@ class ViTBackbone(nn.Module):
         self.square1 = Square(self.n_patches-1)
         self.square2 = Square(self.patch_size-1)
 
-        self.patch_embed = eqnn.EquivariantPatchEmbed(self.square2.action.pullback(self.square2.action.group.subgroup(*config.subgroup)), 
-                                                      config.in_channels, config.dims)
-        self.pos_enc = eqnn.EquivariantPositionalEncoding(self.square1.action.pullback(self.square2.action.group.subgroup(*config.subgroup)), 
-                                                          config.dims)
+
+        patch_action = self.square2.action
+        self.patch_embed = eqnn.EquivariantPatchEmbed(
+                                patch_action.pullback(patch_action.group.subgroup(*config.subgroup)), 
+                                config.in_channels, config.dims)
+
+        interpatch_action = self.square1.action
+        self.pos_enc = eqnn.EquivariantPositionalEncoding(
+                                interpatch_action.pullback(interpatch_action.group.subgroup(*config.subgroup)), 
+                                config.dims)
+
         self.add_cls_token = eqnn.AppendClassToken(config.dims[0])
 
         group = self.square1.action.group.subgroup(*config.subgroup).source
@@ -73,8 +78,7 @@ class ViTBackbone(nn.Module):
 
         x = self.patch_embed(x)
         x = self.pos_enc(x)
-        x = self.add_cls_token(x)
-        return x
+        return self.add_cls_token(x)
 
     def apply_transformer_blocks(self, x: List[torch.Tensor]) -> List[torch.Tensor]:
         """
@@ -90,7 +94,7 @@ class ViTBackbone(nn.Module):
             x = blk(x)
         return x
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: torch.Tensor) -> List[torch.Tensor]:
         x = self.tokenization_stem(x)
         x = self.apply_transformer_blocks(x)
         return x 
@@ -99,12 +103,3 @@ class ViTBackbone(nn.Module):
 
 
 
-
-# class EquivariantViT(nn.Module):
-#     def __init__(self, num_layers: int, some_object):
-#         super().__init__()
-
-#     def forward(self, x: torch.Tensor) -> torch.Tensor:
-#         x = self.backbone(x)
-#         x = self.head(x)
-#         return x

@@ -27,14 +27,17 @@ class Hexagon(Lattice):
           correspond to the coefficients of the three vectors :math:`(e_1, e_2-e_1, -e_2)`. This indexing scheme
           is redundant: both :math:`(i,j,k)` and :math:`(i-a,j-a,k-a)` refer to the same lattice site.
 
+
+    Note:
+        The reflection generator (:math:`t`) always corresponds to a reflection
+        about the **horizontal** axis (independently of the orientation), and the rotation generator (:math:`r`) always
+        corresponds to a counterclockwise rotation by 60 degrees.
     """
 
     symmetry_group = D6
 
     N: int
     """side length of the hexagon"""
-
-
 
     def __init__(self, N: int, orientation: str = 'y'):
         """
@@ -108,28 +111,17 @@ class Hexagon(Lattice):
         t_action = []
         for q in range(self.L):
             a, b, c = self.index_dec[3][q]
+            #
+            # (1, 0, 0) -> (0, 0, -1)
+            # (0, 1, 0) -> (-1, 0, 0)
             r_action.append(self.index_enc[3][-b,-c,-a])
-            t_action.append(self.index_enc[3][-a,-c,-b])
+            if self.orientation == 'x':
+                # t_action.append(self.index_enc[3][b,a,c])
+                t_action.append(self.index_enc[3][a, c, b])
+            else:
+                t_action.append(self.index_enc[3][-b,-a,-c])
             
         self.action = dihedral_group_action(D6, r_action=r_action, t_action=t_action)
-
-        # self.action_dict = {}
-
-        # for g in D6:
-        #     _dict = []
-        #     for q in range(self.L):
-        #         a,b,c = self.index_dec[3][q]
-        #         word = g.value[0] * 't' + g.value[1] * 'r'
-        #         for x in word[::-1]:
-        #             if x == 'r':
-        #                 a,b,c = -b,-c,-a
-        #             elif x == 't':
-        #                 a,b,c = -a,-c,-b
-        #             else:
-        #                 raise ValueError(f'Invalid D6 generator: {x}')
-        #         q_new = self.index_enc[3][a,b,c]
-        #         _dict.append(q_new)
-        #     self.action_dict[g] = np.array(_dict, dtype=np.int64)
 
     @property
     def points(self):

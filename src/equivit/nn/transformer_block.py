@@ -55,25 +55,6 @@ class EquivariantTransformerBlock(nn.Module):
     Everything is equivariant.
     """
     def __init__(self, config: EquivariantTransformerBlockConfig):
-    #     group: Group,
-    #     dims: List[int],
-    #     num_heads: Union[int, List[int]],
-
-    #     homogeneous_space_copies: List[int], # for nonlinearity in MLP
-
-    #     attn_type: Literal['irrepwise', 'coupled'] = 'irrepwise', # only support 'irrepwise' for now
-    #     trivial_rep_attn_bias: bool = True,
-    #     attn_drop: float = 0.,
-    #     trivial_rep_proj_bias: bool = True,
-    #     proj_drop: float = 0.,
-
-    #     trivial_rep_mlp_bias: bool = True,
-    #     mlp_drop_probs: Tuple[float, float] = (0.,0.),
-
-    #     ls_init_values=None,
-    #     # norm_layer: Callable = None, 
-    #     drop_path: float=0.
-    # ):
         super().__init__()
 
         config.validate()

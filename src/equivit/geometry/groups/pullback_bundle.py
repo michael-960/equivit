@@ -6,9 +6,9 @@ import numpy as np
 import torch
 
 if TYPE_CHECKING:
-    from .base import GroupElement
-    from ..action import GroupAction
-    from ..representations import GroupRepresentation
+    from .representations.base import GroupElement
+    from .action import GroupAction
+    from .representations import GroupRepresentation
 
 
 
@@ -111,10 +111,11 @@ class EquivariantPullbackBundle:
     def act_on_section(self, g: GroupElement, x: torch.Tensor, repr: GroupRepresentation, action_dim: int=0) -> torch.Tensor: ...
     @overload
     def act_on_section(self, g: GroupElement, x: np.ndarray, repr: GroupRepresentation, action_dim: int=0) -> np.ndarray: ...
+
     def act_on_section(
         self, g: GroupElement, x, repr: GroupRepresentation,
         action_dim: int=0
-    ) -> List[torch.Tensor]:
+    ):
         r"""
         Given an :math:`H`-representation :math:`V`, there is a natural :math:`G`-action on the space of
         sections of the associated vector bundle :math:`P` \times_H V` over :math:`X` with typical fiber :math:`V`.
@@ -152,15 +153,15 @@ class EquivariantPullbackBundle:
 
 
     def find_invariant_subspace(self, repr: GroupRepresentation) -> List[torch.Tensor]:
-        """
+        r"""
         Find a basis for the invariant subspace of the induced representation (see Action.induce_from for details of the construction).
 
         Args:
             repr: a representation of H specified by subgroup_args
         Note: 
-            each basepoint is an integer in [0, |O|), where O is the corresponding G-orbit.
+            each basepoint is an integer in :math:`\{0, 1, \dotsb, |O|-1\}`, where O is the corresponding G-orbit.
         """
-        from ..utils import find_irrep_components
+        from .utils import find_irrep_components
 
         orbits = self.action.orbits()
         subgroup_incl = self.action.group.subgroup(*self.subgroup_args)
@@ -189,3 +190,43 @@ class EquivariantPullbackBundle:
                 )
 
         return invariant_vectors
+
+
+    def twisted_product(self, action: GroupAction) -> GroupAction:
+        r"""
+        Given an :math:`H`-action on a set :math:`Y`, we can construct a twisted
+        product action of :math:`G` on the set :math:`X \times Y` as follows:
+
+
+        Note:
+            - The flattened index of the resulting action is given by
+              :math:`i_{X \times Y} = i_X \cdot |Y| + i_Y`, where :math:`i_X` and
+              :math:`i_Y` are the flattened indices of the input actions on
+              :math:`X` and :math:`Y` respectively.
+        """
+        from .action import GroupAction
+
+        # TODO: we can relax this by allowing a homomorphism from H to the group acting on Y
+        assert action.group is self.subgroup, f"The input action must be an action of the subgroup H. Got action of group {action.group} and subgroup {self.subgroup}."
+
+        action_dict = dict()
+
+        def _flatten(x, y):
+            return x * action.num_elements + y
+
+        for g in self.group:
+            _dict = dict()
+            for i, k in enumerate(self.representatives):
+
+                b = self.representatives[self.coset_inds[g*k]]
+                h = self.GtoH[b.inv() * g * k]
+
+                for x in self.fibers[i]:
+                    gx = self.action(g)[x]
+
+                    for y in range(action.num_elements):
+                        _dict[(x,y)] = (gx, action(h)[y])
+
+            action_dict[g] = [_flatten(*_dict[x,y]) for x in range(self.action.num_elements) for y in range(action.num_elements)]
+
+        return GroupAction(group=self.group, action_dict=action_dict)

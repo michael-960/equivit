@@ -7,4 +7,7 @@ from .cyclic import C1, C2, C3, C4, C5, C6, C7, C8, CyclicGroup, TRIVIAL_GROUP, 
 
 from .utils import find_irrep_components, decompose_set_action #, induce_and_find_invariant_vectors
 
-from .representations import RealIrrep, ComplexIrrep, IrrepType, ComplexStructure, GroupRepresentation, EquivariantPullbackBundle
+from .representations import RealIrrep, ComplexIrrep, IrrepType, ComplexStructure, GroupRepresentation
+
+
+from .pullback_bundle import EquivariantPullbackBundle

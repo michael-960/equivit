@@ -1,7 +1,7 @@
 from __future__ import annotations
 from enum import Enum
 import numpy as np
-from typing import Dict, List, Any, Union, overload, TYPE_CHECKING
+from typing import Dict, List, Any, Union, overload, TYPE_CHECKING, Callable, Tuple
 
 from .base import Group, GroupElement, GroupHomomorphism
 
@@ -83,13 +83,14 @@ class GroupAction:
 
     def to_linear_representation(self) -> GroupRepresentation:
         r"""
-        Return the a :class:`GroupRepresentation` object that consists of real matrices
-        of the corresponding representation on the vector space spanned by the
-        set elements.
-        
         Returns: 
-            a dictionary mapping group elements to representation matrices. 
-            Each value of the dictionary is a permutation matrix of shape :math:`(L, L)`, where :math:`L` is the size of the set.
+            an instance of :class:`GroupRepresentation` that consists of real matrices
+            of the corresponding representation on the vector space spanned by the
+            set elements.
+
+        Note:
+            - The resulting representation is given by permutation matrices, so they are very sparse.
+            - This method should only be used for small sets.
         """
         rep_matrices = dict()
 
@@ -115,7 +116,7 @@ class GroupAction:
             action of H on the same set X. 
         Note:
             This is different from restricting the action to a subset of X that is invariant under the subgroup H, 
-            which is implemented in the restrict_action method.
+            which is implemented in the :meth:`restrict_action` method.
         """
         action_dict = dict()
         for g in homomorphism.source:
@@ -183,19 +184,82 @@ class GroupAction:
         else:
             g = self.group[g]
 
-        ind_dict = self.action(g.inv())
+        ind_dict = self(g.inv())
 
         if dim < 0:
             dim = len(x.shape) + dim
 
-        slices = [slice(None)]*len(x.shape)
+        slices: List[Any] = [slice(None)]*len(x.shape)
         slices[dim] = ind_dict
 
         y = x[tuple(slices)]
 
         return y
 
+    def quotient(self, relation: Callable[[int, int], bool]) -> Tuple[GroupAction, List[int]]:
+        r"""
+        Given an equivalence relation on the set, return the quotient action on the set of equivalence classes.
 
+        Args:
+            relation: a function that takes in two indices and returns True if they are equivalent, and False otherwise.
+        
+        Returns:
+            A tuple of (quotient_action, quotient_map), where:
+                - quotient_action is a GroupAction object representing the action of the group on the set of equivalence classes.
+                - quotient_map is a list of integers of length num_elements,
+                  mapping each element of the original set to the index of its
+                  equivalence class in the quotient set. The indices of the
+                  equivalence classes are assigned in the order they are
+                  encountered when iterating through the original set.
+
+
+        Note:
+            - The relation is checked for reflexivity, symmetry and transitivity.
+            - The relation must be compatible with the group action. I.e. :math:`i\sim j \Leftrightarrow gi \sim gj`.
+        """
+
+        # first, we check that relation is indeed an equivalence relation
+        # this is O(L^3), so we might want to optimize this later
+        for i in range(self.num_elements):
+            assert relation(i, i), "relation is not reflexive"
+            for j in range(self.num_elements):
+                if relation(i, j):
+                    assert relation(j, i), "relation is not symmetric"
+                    for k in range(self.num_elements):
+                        if relation(j, k):
+                            assert relation(i, k), "relation is not transitive"
+
+        # we check that the relation is compatible with the group action
+        for g in self.group:
+            for i in range(self.num_elements):
+                for j in range(self.num_elements):
+                    if relation(i, j):
+                        assert relation(self(g)[i], self(g)[j]), "relation is not compatible with the group action"
+                    else:
+                        assert not relation(self(g)[i], self(g)[j]), "relation is not compatible with the group action"
+    
+        # we find the equivalence classes
+        eq_classes = []
+        seen = set()
+        _eq_class_ind = 0
+        quotient_map = dict()
+        for i in range(self.num_elements):
+            if i in seen:
+                continue
+            eq_class = [j for j in range(self.num_elements) if relation(i, j)]
+            eq_classes.append(eq_class)
+            for j in eq_class: 
+                quotient_map[j] = _eq_class_ind
+            _eq_class_ind += 1
+            seen.update(eq_class)
+
+
+        # we construct the quotient action
+        quotient_action_dict = dict()
+        for g in self.group:
+            quotient_action_dict[g] = [quotient_map[self(g)[_eq_class[0]]] for _eq_class in eq_classes]
+
+        return GroupAction(self.group, quotient_action_dict), [quotient_map[i] for i in range(self.num_elements)]
 
     def induce_from(self, 
         subgroup_args: tuple, 
@@ -209,9 +273,9 @@ class GroupAction:
             - Choose a base point :math:`x_0` in :math:`X`
             - H is a normal subgroup of :math:`G` that contains :math:`\mathrm{Stab}_G(x_0)`
                 - Note: since H is normal and the G-action is transitive, H also contains :math:`\mathrm{Stab}_G(x)` for all :math:`x \in X`.
-            - We are given an H-representation :math:`(rho, V)`
+            - We are given an H-representation :math:`(\rho, V)`
 
-        Given this data, we can construct a G-representation on the 
+        Given this data, we can construct a :math:`G`-representation on the 
         space of functions :math:`X\rightarrow V`.
 
         Special case: if the subgroup is the whole group, then the resulting representation is just 
