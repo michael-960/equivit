@@ -15,18 +15,28 @@ from .. import nn as eqnn
 
 @dataclass
 class OcticViTBackboneConfig:
-    img_size: int # size of input image (assumed to be square)
-    patch_size: int # number of trinagular patches on each side
+    r"""
+    Config dataclass for the :class:`OcticViTBackbone` model.
+    """
+    img_size: int 
+    """Size of input image (assumed to be square)."""
+
+    patch_size: int 
+    """Number of pixels on each side of one patch (assumed to be square)."""
 
     dims: List[int]
+    """Number of channels for each irrep."""
 
     transformer_block_config: eqnn.EquivariantTransformerBlockConfig
 
     subgroup: tuple = ('D', 4, 0)
+    """Subgroup for the equivariant operations. See :meth:`equivit.geometry.DihedralGroup.subgroup` for details."""
 
     in_channels: int = 3 # input channel
+    """Number of channels in the input image."""
 
     depth: int = 12
+    """Number of transformer blocks."""
 
     def __post_init__(self):
         self.transformer_block_config.dims = self.dims
@@ -34,6 +44,16 @@ class OcticViTBackboneConfig:
 
 
 class OcticViTBackbone(nn.Module):
+    r"""
+        :math:`D_4`-equivariant Vision Transformer backbone for images defined on a square grid 
+        (`arXiv:2505.15441 <https://arxiv.org/abs/2505.15441>`_).
+        The :math:`D_4` symmetry can be optionally broken to a subgroup (e.g.,
+        :math:`C_4` or :math:`C_2`) by specifying the ``subgroup`` parameter in
+        the config.
+
+        Args:
+            config: An instance of :class:`OcticViTBackboneConfig` containing the configuration parameters for the model.
+    """
     def __init__(self, config: OcticViTBackboneConfig):
         super().__init__()
         # eqnn.EquivariantPatchEmbed()
@@ -70,7 +90,13 @@ class OcticViTBackbone(nn.Module):
         Applies patch embedding, positional encoding, and appends a class token to the input image tensor.
 
         Args:
-            x (torch.Tensor): Input image tensor of shape (B, C, L)
+            x (torch.Tensor): Input image tensor of shape :math:`(B, C, L_0)`, where :math:`L_0`
+                is the number of pixels (i.e., ``img_size**2``).
+        Returns:
+            List[torch.Tensor]: A list of tensors, each of shape :math:`(B, L, C_i, d_i)`, 
+            where :math:`L` is the number of tokens (number of patches plus one for the class token), 
+            :math:`C_i` is the number of channels for each irrep (specifie by ``dims``), 
+            and :math:`d_i` is the complex dimension of each irrep.
         """
         x = einops.rearrange(x, 'b c (n1 p1 n2 p2) -> b (n1 n2) (p1 p2) c',
                              n1=self.n_patches, p1=self.patch_size, 
@@ -95,9 +121,23 @@ class OcticViTBackbone(nn.Module):
         return x
 
     def forward(self, x: torch.Tensor) -> List[torch.Tensor]:
-        x = self.tokenization_stem(x)
-        x = self.apply_transformer_blocks(x)
-        return x 
+        """
+        :meth:`tokenization_stem` followed by :meth:`apply_transformer_blocks`.
+
+        Args:
+            x (torch.Tensor): Input image tensor of shape :math:`(B, C, L_0)`, where :math:`L_0`
+                is the number of pixels (i.e., ``img_size**2``).
+        Returns:
+            List[torch.Tensor]: A list of tensors, each of shape :math:`(B, L, C_i, d_i)`, 
+            where :math:`L` is the number of tokens (number of patches plus one for the class token), 
+            :math:`C_i` is the number of channels for each irrep (specified by ``dims``), 
+            and :math:`d_i` is the complex dimension of each irrep.
+
+        """
+        xs = self.tokenization_stem(x)
+        xs = self.apply_transformer_blocks(xs)
+        return xs
+
 
 
 

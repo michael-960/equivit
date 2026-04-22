@@ -125,7 +125,7 @@ class GroupAction:
         return GroupAction(homomorphism.source, action_dict)
 
     def irrep_multiplicities(self) -> Dict[str, int]:
-        """
+        r"""
         Return the multiplicity of each real irrep in the 
         representation of the group on the vector space spanned functions from the set to :math:`\mathbb{R}`.
 
@@ -138,7 +138,7 @@ class GroupAction:
         return {irrep_name: len(proj) for irrep_name, proj in projections.items()}
 
     def orbits(self) -> List[List[int]]: 
-        """
+        r"""
         Decompose the set into orbits under the group action, and return a list
         of orbits. Each orbit is represented as a list of indices of the
         elements in the orbit.
@@ -158,7 +158,7 @@ class GroupAction:
         return orbits
 
     def is_transitive(self) -> bool:
-        """
+        r"""
         Return True if the group action is transitive, i.e., there is only one orbit.
 
         Returns:

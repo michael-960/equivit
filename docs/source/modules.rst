@@ -6,4 +6,5 @@ API Reference
 
    equivit.geometry
    equivit.nn
+   equivit.models
 

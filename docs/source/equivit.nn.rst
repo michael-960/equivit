@@ -51,3 +51,5 @@ ViT components
 :doc:`nn/transformer_block`
 
 :doc:`nn/cls_token`
+
+:doc:`nn/invariant_classhead`

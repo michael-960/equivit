@@ -34,8 +34,12 @@ release = '0.0.1'
 extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.napoleon',
-    'sphinx.ext.mathjax'
+    'sphinx.ext.mathjax',
+    'sphinx_copybutton',
+    'sphinx.ext.intersphinx'
 ]
+
+
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -88,3 +92,12 @@ autodoc_typehints = "description"
 #         "color-admonition-background": "#1e1e2e", # Base
 #     },
 # }
+
+
+# conf.py
+
+intersphinx_mapping = {
+    'python': ('https://docs.python.org/3', None),
+    'numpy': ('https://numpy.org/doc/stable/', None),
+    'torch': ('https://pytorch.org/docs/stable/', None),
+}
