@@ -28,9 +28,9 @@ Then, install the package locally using pip:
 Building a model
 --------------------------
 
-While EquiViT provides a modular API for building custom equivariant vision transformer models (see :doc:`API Reference`, 
+While EquiViT provides a modular API for building custom equivariant vision transformer models (see :doc:`modules`, 
 in particular :doc:`equivit.nn`), 
-we also provide pre-defined model configurations for quick experimentation. 
+we also provide pre-defined architectures for quick experimentation. 
 
 For example, we will show in the following how to build a :math:`D_4`-equivariant
 vision transformer (`arXiv:2505.15441 <https://arxiv.org/abs/2505.15441>`_).
@@ -51,7 +51,7 @@ and outputs a list of tensors, each of shape :math:`(B, L, C_i, d_i)`, where
     config = equivit.models.OcticViTBackboneConfig(
         img_size=32,
         patch_size=8,
-        dims=[64, 64, 64, 64, 128], # D4 has 5 irreps
+        dims=[64, 64, 64, 64, 128], # D4 has 5 irreps: A1, A2, B1, B2, E1
         subgroup=('D', 4, 0), # for full D4 symmetry
         depth=12, # number of transformer blocks
         transformer_block_config=equivit.nn.EquivariantTransformerBlockConfig(
@@ -77,3 +77,51 @@ backbone.
 
     model = torch.nn.Sequential(backbone, head)
     
+
+
+
+Testing Invariance
+--------------------
+
+We will check that the output of ``model`` is invariant under the :math:`D_4` group action.
+
+To do this, we first create an instance of :class:`equivit.Square`, which represents
+the square grid of ``config.img_size * config.img_size`` pixels (in our case, ``32*32``),
+and encodes the :math:`D_4` action.
+
+Here, ``square.points`` is an ``np.ndarray`` of shape :math:`(L, 2)`, 
+where :math:`L` is the number of pixels, and each row contains the 
+coordinates of a pixel. ``square.action`` is a function that takes as input
+a group element (e.g., ``group['r']`` for a 90 degree rotation) and returns a
+list of integers representing how the group element permutes the pixel indices.
+
+.. code-block:: python
+
+    import matplotlib.pyplot as plt
+
+    square = equivit.Square(config.img_size - 1) # create a square grid
+
+    plt.scatter(*square.points.T)
+
+    print(square.action(group['r']))
+
+
+
+Finally, we create a random batch of images (as a tensor of shape :math:`(B, C, L)`) 
+and apply a group element (here a rotation) to the input. 
+We then check that the output of the model is the same for both the original and transformed inputs.
+
+.. code-block:: python
+
+    x = torch.randn(2, 3, config.img_size**2) # batch of 2 images, each with 3 channels and size 32x32
+    g_x = x[..., square.action(group['r'].inv())] # apply a group element (here, a rotation) to the input
+
+
+    print(model(x))
+    print(model(g_x))
+
+    print('Error:')
+    print((model(x) - model(g_x)).abs().max().item()) # check that the outputs are the same (up to numerical precision)
+
+
+The last line should print a very small number (:math:`\lesssim 10^{-6}`).

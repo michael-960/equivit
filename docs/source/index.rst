@@ -6,11 +6,25 @@
 Welcome to EquiViT's documentation!
 ===================================
 
+Contents
+---------
+
+* :doc:`quickstart`
+
+* :doc:`guide_groups`
+
+* :doc:`modules`
+
+
 .. toctree::
-   :maxdepth: 2
-   :caption: Contents:
+   :maxdepth: 4
+   :hidden:
+
+
+   .. :caption: Contents:
 
    quickstart
+   guide_groups
    modules
 
 

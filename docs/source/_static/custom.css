@@ -1,18 +1,28 @@
-/* Target the DARK theme with higher specificity than Furo's defaults */
-html[data-theme="dark"] {
-    /* Brand Colors */
-    --color-brand-primary: #89b4fa !important;
-    --color-brand-content: #cba6f7 !important;
+/* _static/custom.css */
+
+:root {
+    /* 1. Expand the maximum width of the entire website */
+    --bz-page-width: 97% !important;      /* Or try 100% */
+    --bz-container-width: 97% !important; 
     
-    /* Backgrounds */
-    --color-background-primary: #04ff00 !important;
-    --color-background-secondary: #181825 !important;
+    /* 2. Expand the maximum width of the middle text panel */
+    --bz-content-width: 100% !important;  
 }
 
-/* Target the LIGHT theme */
-html[data-theme="light"] {
-    --color-brand-primary: #1e66f5 !important;
-    --color-brand-content: #8839ef !important;
-    
-    --color-background-primary: #eff1f5 !important;
+/* Fallback: Target the specific classes you found */
+.bz-page,
+.bz-container,
+.bz-layout {
+    max-width: 97% !important;
+}
+
+.bz-content {
+    max-width: 100% !important;
+}
+
+html, 
+body {
+    /* You can use a pixel value (e.g., 18px) or a percentage. 
+       Standard web default is usually 16px. */
+    font-size: 20px !important; 
 }

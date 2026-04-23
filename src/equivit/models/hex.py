@@ -36,6 +36,7 @@ class HexViTBackboneConfig:
 
 class HexViTBackbone(nn.Module):
     """
+    TODO: think about how to break symmetry.
     """
     def __init__(self, config: HexViTBackboneConfig):
         super().__init__()

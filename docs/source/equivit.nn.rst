@@ -9,47 +9,57 @@ Equivariant layers and utilities.
 
 General layers
 -----------------
-:doc:`nn/linear`
 
-:doc:`nn/nonlinear`
+.. toctree::
+    :maxdepth: 1
 
-:doc:`nn/mlp`
+    nn/linear
+    nn/nonlinear
+    nn/mlp
+    nn/invariant
 
-:doc:`nn/invariant`
 
 Dropout layers
 -----------------
-:doc:`nn/drop`
 
-:doc:`nn/drop_path`
+.. toctree::
+    :maxdepth: 1
+    
+    nn/drop
+    nn/drop_path
+
 
 Attention layers
 ------------------
-:doc:`nn/attn_irrepwise`
 
-:doc:`nn/attn_coupled`
+.. toctree::
+    :maxdepth: 1
+
+    nn/attn_irrepwise
+    nn/attn_coupled
 
 Normalization layers
 ---------------------
-:doc:`nn/layer_norm`
 
-:doc:`nn/affine`
+.. toctree::
+    :maxdepth: 1
 
-:doc:`nn/layer_scale`
+    nn/layer_norm
+    nn/affine
+    nn/layer_scale
 
 
 
 ViT components
 ------------------------------
 
-:doc:`nn/patch_embed`
+.. toctree::
+    :maxdepth: 1
 
-:doc:`nn/pos_enc`
+    nn/patch_embed
+    nn/pos_enc
+    nn/pos_enc_induced
+    nn/transformer_block
+    nn/cls_token
+    nn/invariant_classhead
 
-:doc:`nn/pos_enc_induced`
-
-:doc:`nn/transformer_block`
-
-:doc:`nn/cls_token`
-
-:doc:`nn/invariant_classhead`
