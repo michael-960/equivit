@@ -19,5 +19,6 @@ from .norm import EquivariantLayerNorm, ListLayerScale, ListAffine
 from .invariant import Invariantization
 from .invariant_classhead import InvariantClassificationHead
 
+from .restriction import SymmetryRestriction
 
 from .utils import assert_all_not_quaternionic, act_on_tensors, random_irrep_tensors , induced_action_on_tensors

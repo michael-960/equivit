@@ -12,12 +12,19 @@ def find_irrep_components(
     irrep: GroupRepresentation,
     clip_small_values=0.
 ) -> np.ndarray:
-    """
+    r"""
+
+    Given a representation :math:`V` of a group :math:`G` and an irreducible representation :math:`W` of :math:`G`,
+    this function finds a basis for :math:`\mathrm{Hom}_G(W, V)`.
+
+    We assume that both :math:`V` and :math:`W` are given by orthogonal matrices.
+    The output basis will be orthonormal with respect to the natural inner
+    product on :math:`\mathrm{Hom}(W, V)`. 
+
 
     Args:
-        rep: a representation over R 
-        irrep: an irreducible representation over R
-        group: the group class
+        rep: a representation over :math:`\mathbb{R}` 
+        irrep: an irreducible representation over :math:`\mathbb{R}`
 
         clip_small_values: small output entries (due to numerical error) will be set to zero
 

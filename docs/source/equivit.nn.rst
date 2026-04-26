@@ -17,6 +17,7 @@ General layers
     nn/nonlinear
     nn/mlp
     nn/invariant
+    nn/restriction
 
 
 Dropout layers

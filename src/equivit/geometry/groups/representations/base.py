@@ -1,9 +1,11 @@
 from enum import Enum
-from ..base import Group, GroupElement
+from ..base import Group, GroupElement, GroupHomomorphism
 from typing import Dict, Any, Optional, List
 import numpy as np
 
 from .complex_structure import ComplexStructure
+
+
 
 
 class IrrepType(Enum):
@@ -116,6 +118,16 @@ class GroupRepresentation:
             self.group, 
             {g: self.complex_structure.endo_r2c(self(g), 0, 1) for g in self.group}
             )
+    
+    def pullback(self, homomorphism: GroupHomomorphism) -> 'GroupRepresentation':
+        """
+        Pull back this representation along the given group homomorphism. 
+        The resulting representation is a representation of the source group of the homomorphism.
+        """
+        return GroupRepresentation(
+            homomorphism.source, 
+            {h: self(homomorphism(h)) for h in homomorphism.source}
+        )
 
 
 
