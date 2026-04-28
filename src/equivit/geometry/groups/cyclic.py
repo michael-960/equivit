@@ -1,15 +1,13 @@
 import numpy as np
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Tuple
 from .base import Group, GroupElement, CachedGroupMeta, GroupHomomorphism, rotation_matrix
 from .action import GroupAction
 
-from ...registry import GROUP
 from .representations.base import GroupRepresentation, IrrepType, RealIrrep
 
 from .representations import GroupRepresentation, IrrepType, RealIrrep, ComplexIrrep, ComplexStructure, StandardComplexStructure
 
 
-# @GROUP.register('CyclicGroup')
 class CyclicGroup(Group, metaclass=CachedGroupMeta):
     """
     Cyclic group of order :math:`n`.
@@ -131,6 +129,23 @@ class CyclicGroup(Group, metaclass=CachedGroupMeta):
 
     def subgroups_up_to_conjugacy(self) -> List[tuple]:
         return [(m,) for m in range(1, self.n+1) if self.n % m == 0]
+
+    def get_subgroup_name(self, subgroup_elements: List[GroupElement]) -> Tuple[int]:
+        assert len(subgroup_elements) == len(set(subgroup_elements)), "Duplicate elements in subgroup_elements"
+
+        subgroup_elements = set(subgroup_elements)
+
+        for m in range(1, self.n+1):
+            if self.n % m == 0:
+                subgroup_incl = self.subgroup(m)
+                if subgroup_elements == set([subgroup_incl(g) for g in subgroup_incl.source]):
+                    return (m,)
+                
+        raise ValueError(f"The provided subgroup_elements do not correspond to any subgroup of {self}")
+
+    @classmethod
+    def parse_args(cls, n: int) -> tuple:
+        return (n,)
 
 
 

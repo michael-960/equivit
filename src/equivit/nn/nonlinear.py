@@ -136,6 +136,7 @@ class EquivariantNonlinear(nn.Module):
 def normalize_columns(x: torch.Tensor) -> torch.Tensor:
     return x / x.norm(dim=0)
 
+
 class Fourier(nn.Module):
     """
     Given an action of a group G on a set X, 
@@ -222,4 +223,12 @@ class Fourier(nn.Module):
         )
 
     def __repr__(self):
-        return f"{self.__class__.__name__}(action={self.action})"
+        try:
+            subgroups = []
+            for orbit in self.action.orbits():
+                subgroup_arg = self.action.group.get_subgroup_name(self.action.stabilizer(orbit[0]))
+                subgroups.append(subgroup_arg)
+
+            return f"{self.__class__.__name__}(action={self.action}, stabilizers={subgroups})"
+        except:
+            return f"{self.__class__.__name__}(action={self.action})"

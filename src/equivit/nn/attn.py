@@ -69,13 +69,17 @@ class EquivariantCoupledAttention(nn.Module):
         assert len(dims) == self.num_irreps, f"Length of dims ({len(dims)}) should match the number of irreps ({self.num_irreps})"
         for i, c in enumerate(dims): assert c % num_heads == 0, f'num_heads ({num_heads}) does not divide dims[{i}] ({c})'
 
+        self.dims = dims
+        self.num_heads = num_heads
+        self.trivial_rep_attn_bias = trivial_rep_attn_bias
+        self.trivial_rep_proj_bias = trivial_rep_proj_bias
+
+
         self.is_complex = [irrep.rep_type is IrrepType.COMPLEX for irrep in self.irreps.values()]
 
         self.irrep_real_dims = [irrep.dim for irrep in self.irreps.values()]
-        self.dims = dims
         self.split_dims = [c // num_heads * D for c,D in zip(dims, self.irrep_real_dims)]
 
-        self.num_heads = num_heads
         self.attn_dims = [c // num_heads for c in dims]
 
         self.qkv = EquivariantLinear(
@@ -152,7 +156,8 @@ class EquivariantCoupledAttention(nn.Module):
         return self.proj_drop(self.proj(y))
 
     def __repr__(self) -> str:
-        return f"{self.__class__.__name__}(group={self.group}, dims={self.dims}, num_heads={self.num_heads}, trivial_rep_attn_bias={self.qkv.trivial_rep_bias}, attn_drop={self.attn_drop}, trivial_rep_proj_bias={self.proj.trivial_rep_bias}, proj_drop={self.proj_drop_p})"
+        return f"{self.__class__.__name__}(group={self.group}, dims={self.dims}, num_heads={self.num_heads}, trivial_rep_attn_bias={self.trivial_rep_attn_bias}, attn_drop={self.attn_drop}, trivial_rep_proj_bias={self.trivial_rep_proj_bias}, proj_drop={self.proj_drop_p})"
+
 
 class EquivariantIrrepwiseAttention(nn.Module):
     r"""
@@ -275,4 +280,4 @@ class EquivariantIrrepwiseAttention(nn.Module):
         return y
 
     def __repr__(self) -> str:
-        return f"{self.__class__.__name__}(group={self.group}, dims={self.dims}, num_heads={self.num_heads}, trivial_rep_attn_bias={self.qkv.trivial_rep_bias}, attn_drop={self.attn_drop}, trivial_rep_proj_bias={self.proj.trivial_rep_bias}, proj_drop={self.proj_drop_p})"
+        return f"{self.__class__.__name__}(group={self.group}, dims={self.dims}, num_heads={self.num_heads}, trivial_rep_attn_bias={self.trivial_rep_attn_bias}, attn_drop={self.attn_drop}, trivial_rep_proj_bias={self.trivial_rep_proj_bias}, proj_drop={self.proj_drop_p})"

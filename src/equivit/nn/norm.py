@@ -20,6 +20,9 @@ class ListLayerScale(nn.Module):
         init_values: Union[float, torch.Tensor] = 1e-5,
     ) -> None:
         super().__init__()
+        self.dims = dims
+        self.init_values = init_values
+
         self.alpha = nn.ParameterList([init_values*torch.ones((d,1)) for d in dims])
         self.n_tensors = len(dims)
 
@@ -32,6 +35,9 @@ class ListLayerScale(nn.Module):
             list of tensors, each of shape :math:`(*, C_i, d_i)`
         """
         return [self.alpha[i]*x[i] for i in range(self.n_tensors)]
+
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}(dims={self.dims}, init_values={self.init_values})"
 
 
 # adapted from octic-vit
@@ -56,6 +62,10 @@ class ListAffine(nn.Module):
         dims: List[int], bias: bool=True
     ):
         super().__init__()
+
+        self.dims = dims
+        self.bias = bias
+
         self.alpha = nn.ParameterList([torch.ones((d,1)) for d in dims])
 
         if bias:
@@ -78,6 +88,9 @@ class ListAffine(nn.Module):
             y[0] = y[0] + self.beta
         
         return y
+    
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}(dims={self.dims}, bias={self.bias})"
 
 
 # adapted from octic-vit
@@ -139,6 +152,9 @@ class EquivariantLayerNorm(nn.Module):
         self.eps = eps
 
         self.dims = dims
+        self.eps = eps
+        self.elementwise_affine = elementwise_affine
+        self.bias = bias
 
     def forward(self, x: List[torch.Tensor]) -> List[torch.Tensor]:
         """
@@ -159,4 +175,8 @@ class EquivariantLayerNorm(nn.Module):
         y = [(z - z.mean(dim=-2, keepdim=True)) / stds[i] for i, z in enumerate(x)]
 
         return self.scaling(y)
+
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}(dims={self.dims}, eps={self.eps}, elementwise_affine={self.elementwise_affine}, bias={self.bias})"
 

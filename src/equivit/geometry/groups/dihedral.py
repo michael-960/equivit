@@ -8,10 +8,7 @@ from .representations import GroupRepresentation, IrrepType, RealIrrep, ComplexS
 from .cyclic import CyclicGroup
 
 
-from ...registry import GROUP
 
-
-# @GROUP.register('DihedralGroup')
 class DihedralGroup(Group, metaclass=CachedGroupMeta):
     r"""
     Dihedral group of order :math:`2n`, denoted :math:`D_n`.
@@ -219,6 +216,31 @@ class DihedralGroup(Group, metaclass=CachedGroupMeta):
                     # if k is odd, there is only one conjugacy class of dihedral subgroups of order 2m, represented by (m, 0)
                     subgroups.append(('D', m, 0))
         return subgroups
+
+    def get_subgroup_name(self, subgroup_elements: List[GroupElement]) -> Tuple[int]:
+        assert len(subgroup_elements) == len(set(subgroup_elements)), "Duplicate elements in subgroup_elements"
+
+        subgroup_elements = set(subgroup_elements)
+
+        for m in range(1, self.n+1):
+            if self.n % m == 0:
+                subgroup_incl = self.subgroup('C', m)
+                if subgroup_elements == set([subgroup_incl(g) for g in subgroup_incl.source]):
+                    return ('C', m)
+                
+                k = self.n // m
+                for q in range(k):
+                    subgroup_incl = self.subgroup('D', m, q)
+                    if subgroup_elements == set([subgroup_incl(g) for g in subgroup_incl.source]):
+                        return ('D', m, q)
+
+                
+        raise ValueError(f"The provided subgroup_elements do not correspond to any subgroup of {self}")
+
+
+    @classmethod
+    def parse_args(cls, n: int) -> tuple:
+        return (n,)
 
 
 D2 = DihedralGroup(2)

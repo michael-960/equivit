@@ -97,7 +97,7 @@ class Group:
         # for irrep_name, irrep in complex_irreps.items():
 
     def subgroups_up_to_conjugacy(self) -> List[tuple]:
-        """
+        r"""
         Returns a list of subgroups of the group, up to conjugacy. 
         Note: the output of this method should be a list of argument tuples to
         be passed to the subgroup method to obtain the corresponding subgroup
@@ -189,7 +189,11 @@ class Group:
             cosets.append(coset)
         return cosets
 
- 
+    def get_subgroup_name(self, subgroup_elements: List[GroupElement]) -> tuple:
+        r"""
+        Return a name for the subgroup, given a list of group elements.
+        """
+        raise NotImplementedError("This method should be implemented by subclasses to return a name for a subgroup given a list of its elements.")
 
 
 
@@ -243,7 +247,7 @@ class GroupHomomorphism:
         return h
 
     def compose(self, f1: GroupHomomorphism) -> GroupHomomorphism:
-        """
+        r"""
         The composition of the homomorphism with another homomorphism f1.
 
         Args:
@@ -301,11 +305,19 @@ class CachedGroupMeta(type):
         super().__init__(name, bases, dct)
         cls._cache = dict()
 
-    def __call__(cls, *args):
-        if args not in cls._cache:
-            cls._cache[args] = super().__call__(*args)
+    def __call__(cls, *args, **kwargs):
 
-        return cls._cache[args]
+        parsed = cls.parse_args(*args, **kwargs)
+        if parsed not in cls._cache:
+            cls._cache[parsed] = super().__call__(*args, **kwargs)
+
+        return cls._cache[parsed]
+
+    def parse_args(cls, *args, **kwargs):
+        r"""
+        Parse the arguments to a hashable form for caching.
+        """
+        raise NotImplementedError("This method should be implemented by subclasses to parse the arguments to a hashable form for caching purposes.")
 
 
 

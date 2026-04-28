@@ -103,13 +103,13 @@ class GroupAction:
         return GroupRepresentation(self.group, rep_matrices)
 
 
-    def pullback(self, homomorphism: GroupHomomorphism) -> GroupAction:
+    def pullback(self, homomorphism: Union[GroupHomomorphism, tuple]) -> GroupAction:
         r"""
         Given a group action :math:`G\rightarrow \mathrm{Aut}(X)` and a homomorphism :math:`\varphi: H\rightarrow G`, 
         there is a natural action :math:`H\rightarrow \mathrm{Aut}(X)`, called the restriction or the pullback.
 
         Args:
-            homomorphism: a group homomorphism :math:`\varphi: H\rightarrow G`
+            homomorphism: a group homomorphism :math:`\varphi: H\rightarrow G` or a tuple of arguments to define a subgroup
         
         Returns:
             The pullback of the action along the homomorphism, which is a group
@@ -118,6 +118,11 @@ class GroupAction:
             This is different from restricting the action to a subset of X that is invariant under the subgroup H, 
             which is implemented in the :meth:`restrict_action` method.
         """
+        if isinstance(homomorphism, tuple):
+            homomorphism = self.group.subgroup(*homomorphism)
+        else:
+            assert isinstance(homomorphism, GroupHomomorphism), "homomorphism must be either a tuple of subgroup arguments or a GroupHomomorphism object"
+
         action_dict = dict()
         for g in homomorphism.source:
             action_dict[g] = self.action_dict[homomorphism(g)]
@@ -347,6 +352,19 @@ class GroupAction:
             rep_matrices[g] = rep_matrix.reshape(rep_dim, rep_dim)
 
         return GroupRepresentation(self.group, rep_matrices)
+    
+    def stabilizer(self, i: int) -> List[GroupElement]:
+        r"""
+        Return the stabilizer subgroup of the element i under the group action.
+
+        Args:
+            i: an integer in the range [0, num_elements-1] specifying the element of the set
+
+        Returns:
+            A list of group elements that stabilize the element i.
+        """
+        assert i in range(self.num_elements), f"i must be an integer in the range [0, {self.num_elements-1}]"
+        return [g for g in self.group if self(g)[i] == i]
     
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}(group={self.group}, num_elements={self.num_elements})"
