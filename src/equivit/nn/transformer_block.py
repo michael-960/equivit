@@ -111,7 +111,6 @@ class EquivariantTransformerBlock(nn.Module):
 
         self.sample_drop_ratio = config.drop_path
 
-
     def forward(self, x: List[torch.Tensor]) -> List[torch.Tensor]:
         r"""
         Args:

@@ -25,3 +25,6 @@ class Invariantization(nn.Module):
         # The first tensor is the trivial irrep, so it must have shape (..., 1). We squeeze the last dimension.
         return torch.cat([y.norm(dim=-1) if i > 0 else y.squeeze(-1)
                           for i,y in enumerate(x)], dim=-1)
+
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}()"

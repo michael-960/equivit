@@ -129,3 +129,6 @@ class SymmetryRestriction(nn.Module):
                 y[j] = y[j].view(torch.complex64)
 
         return y
+
+    def __repr__(self) -> str:
+        return f'SymmetryRestriction({self.homomorphism})'

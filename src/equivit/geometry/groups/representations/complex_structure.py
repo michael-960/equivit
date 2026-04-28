@@ -75,7 +75,7 @@ class StandardComplexStructure(ComplexStructure):
         return x_re + 1j*x_im
 
     def vector_c2r(self, x: np.ndarray, axis: int):
-        return np.concat((x.real, x.imag), axis=axis)
+        return np.concatenate((x.real, x.imag), axis=axis)
 
     def dual_vector_r2c(self, x, axis):
         return self.vector_r2c(x, axis).conj()
@@ -94,9 +94,9 @@ class StandardComplexStructure(ComplexStructure):
         return x_re + 1j*x_im
 
     def endo_c2r(self, x, axis1: int, axis2: int):
-        y = np.concat((x.real, -x.imag), axis=axis2)
-        z = np.concat((x.imag, x.real), axis=axis2)
-        return np.concat((y, z), axis=axis1)
+        y = np.concatenate((x.real, -x.imag), axis=axis2)
+        z = np.concatenate((x.imag, x.real), axis=axis2)
+        return np.concatenate((y, z), axis=axis1)
 
    
 

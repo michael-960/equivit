@@ -1,3 +1,4 @@
+import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -8,6 +9,9 @@ from .linear import EquivariantLinear
 from .drop import ListDropout
 
 from .utils import assert_all_not_quaternionic
+
+from .init import complex_uniform_disk_, kaiming_uniform_, complex_kaiming_uniform_
+
 
 
 class EquivariantCoupledAttention(nn.Module):
@@ -91,6 +95,24 @@ class EquivariantCoupledAttention(nn.Module):
         )
 
         self.proj_drop = ListDropout(proj_drop)
+        self.proj_drop_p = proj_drop
+
+        self.reset_parameters()
+
+    def reset_parameters(self):
+        gain = 1.0
+        with torch.no_grad():
+            for i, weight in enumerate(self.qkv.weights):
+                if self.is_complex[i]:
+                    complex_kaiming_uniform_(weight, fan_in=self.dims[i], gain=gain)
+                else:
+                    kaiming_uniform_(weight, fan_in=self.dims[i], gain=gain)
+
+            for i, weight in enumerate(self.proj.weights):
+                if self.is_complex[i]:
+                    complex_kaiming_uniform_(weight, fan_in=self.dims[i], gain=gain)
+                else:
+                    kaiming_uniform_(weight, fan_in=self.dims[i], gain=gain)
 
     def forward(self, x: List[torch.Tensor]) -> List[torch.Tensor]:
         """
@@ -121,13 +143,16 @@ class EquivariantCoupledAttention(nn.Module):
 
         y = torch.split(y, self.split_dims, dim=-1) # list of (*, L, H, Ci/H * Di)
 
-        y = [z.reshape(*common_shape, self.dims[i], self.irrep_real_dims[i]) for i, z in enumerate(y)] 
+        y = [z.reshape(*common_shape, self.dims[i], self.irrep_real_dims[i]).contiguous() for i, z in enumerate(y)] 
         # list of (*, L, Ci, Di) where Di is the real dimension of the irrep
 
         y = [z.view(torch.complex64) if self.is_complex[i] else z for i, z in enumerate(y)]
         # list of real or complex tensors, each of shape (*, L, Ci, di) where di is the (complex) dimension of the irrep
 
         return self.proj_drop(self.proj(y))
+
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}(group={self.group}, dims={self.dims}, num_heads={self.num_heads}, trivial_rep_attn_bias={self.qkv.trivial_rep_bias}, attn_drop={self.attn_drop}, trivial_rep_proj_bias={self.proj.trivial_rep_bias}, proj_drop={self.proj_drop_p})"
 
 class EquivariantIrrepwiseAttention(nn.Module):
     r"""
@@ -186,6 +211,24 @@ class EquivariantIrrepwiseAttention(nn.Module):
         )
 
         self.proj_drop = ListDropout(proj_drop)
+        self.proj_drop_p = proj_drop
+
+        self.reset_parameters()
+
+    def reset_parameters(self):
+        gain = 1.0
+        with torch.no_grad():
+            for i, weight in enumerate(self.qkv.weights):
+                if self.is_complex[i]:
+                    complex_kaiming_uniform_(weight, fan_in=self.dims[i], gain=gain)
+                else:
+                    kaiming_uniform_(weight, fan_in=self.dims[i], gain=gain)
+
+            for i, weight in enumerate(self.proj.weights):
+                if self.is_complex[i]:
+                    complex_kaiming_uniform_(weight, fan_in=self.dims[i], gain=gain)
+                else:
+                    kaiming_uniform_(weight, fan_in=self.dims[i], gain=gain)
 
     def forward(self, x: List[torch.Tensor]) -> List[torch.Tensor]:
         """
@@ -231,4 +274,5 @@ class EquivariantIrrepwiseAttention(nn.Module):
         y = self.proj_drop(y)
         return y
 
-
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}(group={self.group}, dims={self.dims}, num_heads={self.num_heads}, trivial_rep_attn_bias={self.qkv.trivial_rep_bias}, attn_drop={self.attn_drop}, trivial_rep_proj_bias={self.proj.trivial_rep_bias}, proj_drop={self.proj_drop_p})"

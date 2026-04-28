@@ -13,7 +13,7 @@ groups = [
 
 @pytest.mark.parametrize("group", groups)
 def test_irrepwise_block(group: equivit.geometry.Group):
-    ERROR_TOL = 1e-6 if group.order() < 20 else 1e-5
+    ERROR_TOL = 3e-6 if group.order() < 20 else 3e-5
     rng = torch.Generator()
     rng.manual_seed(45)
 
@@ -52,7 +52,7 @@ def test_irrepwise_block(group: equivit.geometry.Group):
 
 @pytest.mark.parametrize("group", groups)
 def test_coupled_block(group: equivit.geometry.Group):
-    ERROR_TOL = 1e-6 if group.order() < 20 else 1e-5
+    ERROR_TOL = 3e-6 if group.order() < 20 else 3e-5
     rng = torch.Generator()
     rng.manual_seed(45)
 

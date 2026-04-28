@@ -7,6 +7,8 @@ from ..geometry import Group, IrrepType
 
 from .utils import assert_all_not_quaternionic
 
+from .init import complex_uniform_disk_, kaiming_uniform_, complex_kaiming_uniform_
+
 
 class EquivariantLinear(nn.Module):
     r"""
@@ -62,6 +64,9 @@ class EquivariantLinear(nn.Module):
         assert len(dims_in) == self.num_irreps, "Length of dims_in should match number of irreps"
         assert len(dims_out) == self.num_irreps, "Length of dims_out should match number of irreps"
 
+        self.dims_in = list(dims_in)
+        self.dims_out = list(dims_out)
+
         self.weights = nn.ParameterList([
             nn.Parameter(torch.zeros(dims_out[i], dims_in[i], dtype=self.dtypes[i])) 
             for i in range(self.num_irreps)
@@ -76,16 +81,24 @@ class EquivariantLinear(nn.Module):
 
 
     def reset_parameters(self) -> None:
-        # imitates source code of torch.nn.Linear
-        for i in range(self.num_irreps):
-            if self.weights[i].numel() > 0:
-                nn.init.kaiming_uniform_(self.weights[i], a=math.sqrt(5))
+        gain = math.sqrt(2)
+        with torch.no_grad():
+            for i in range(self.num_irreps):
+                if self.weights[i].numel() > 0:
+                    if self.weights[i].dtype.is_complex:
+                        # if complex, draw the weights from the unit disk
+                        complex_kaiming_uniform_(self.weights[i], fan_in=self.dims_in[i], gain=gain)
+                    else:
+                        kaiming_uniform_(self.weights[i], fan_in=self.dims_in[i], gain=gain)
 
-        if self.bias is not None:
-            if self.bias.numel() > 0:
-                fan_in, _ = nn.init._calculate_fan_in_and_fan_out(self.weights[0])
-                bound = 1 / math.sqrt(fan_in) if fan_in > 0 else 0
-                nn.init.uniform_(self.bias, -bound, bound)
+            if self.bias is not None:
+                if self.bias.numel() > 0:
+                    # fan_in, _ = nn.init._calculate_fan_in_and_fan_out(self.weights[0])
+                    # bound = 1 / math.sqrt(fan_in) if fan_in > 0 else 0
+                    # nn.init.uniform_(self.bias, -bound, bound)
+
+                    # let's just initiliaze the bias to zero
+                    nn.init.zeros_(self.bias)
 
     def forward(self, x: List[torch.Tensor]) -> List[torch.Tensor]:
         """
@@ -110,4 +123,5 @@ class EquivariantLinear(nn.Module):
         return outs
 
 
-
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}(group={self.group}, dims_in={self.dims_in}, dims_out={self.dims_out}, trivial_rep_bias={self.bias is not None})"

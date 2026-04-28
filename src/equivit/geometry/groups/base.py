@@ -289,7 +289,8 @@ class GroupHomomorphism:
                     return False
         return True
 
-
+    def __repr__(self) -> str:
+        return f'GroupHomomorphism({self.source} -> {self.target})'
 
 
 class CachedGroupMeta(type):

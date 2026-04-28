@@ -4,12 +4,15 @@ import torch
 import torch.nn.functional as F
 import numpy as np
 from typing import Tuple, List
+import math
 
 from ..geometry import Group, Lattice, GroupAction, IrrepType
 
 from .lattice_irrep_handler import GroupActionIrrepProjectionCalculator
 
 from .utils import assert_all_not_quaternionic
+
+from .init import complex_uniform_disk_, kaiming_uniform_, complex_kaiming_uniform_
 
 
 
@@ -97,9 +100,18 @@ class EquivariantPatchEmbed(nn.Module):
 
 
     def reset_parameters(self):
-        for coeff in self.coefficients:
-            # xavier uniform for now, we should change this later
-            nn.init.xavier_uniform_(coeff)
+        gain = 1.0 # because no activation is applied after patch embedding and positional encoding
+        with torch.no_grad():
+            for i, coeff in enumerate(self.coefficients):
+                # xavier uniform for now, we should change this later
+                # this is wrong! 
+                # nn.init.xavier_uniform_(coeff)
+                if self.is_complex[i]:
+                    fan_in = self.proj_calc.num_irrep_copies[i] * self.in_channels
+                    complex_kaiming_uniform_(coeff, fan_in=fan_in, gain=gain)
+                else:
+                    fan_in = self.proj_calc.num_irrep_copies[i] * self.in_channels
+                    kaiming_uniform_(coeff, fan_in=fan_in, gain=gain)
 
     def get_projections(self):
         filts = self.proj_calc(self.coefficients)
@@ -140,7 +152,6 @@ class EquivariantPatchEmbed(nn.Module):
                 outs[i] = (x @ filts[i]).unflatten(-1, (self.out_channels[i], self.irrep_dims[i])) # (*, Ci, di)
         return outs
 
-
-
-
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}(action={self.action}, in_channels={self.in_channels}, out_channels={self.out_channels})"
 

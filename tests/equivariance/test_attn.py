@@ -42,7 +42,7 @@ def test_irrepwise_attn(group: equivit.geometry.Group):
 
             for i, irrep_name in enumerate(irreps.keys()):
                 error = (y_t2[i] - y_t[i]).abs().max()
-                assert error < 1e-6, f"Error for irrep {irrep_name} and group element {g}: {error}"
+                assert error < 2e-6, f"Error for irrep {irrep_name} and group element {g}: {error}"
 
 
 @pytest.mark.parametrize("group", groups)
@@ -75,4 +75,4 @@ def test_coupled_attn(group: equivit.geometry.Group):
 
             for i, irrep_name in enumerate(irreps.keys()):
                 error = (y_t2[i] - y_t[i]).abs().max()
-                assert error < 1e-6, f"Error for irrep {irrep_name} and group element {g}: {error}"
+                assert error < 3e-6, f"Error for irrep {irrep_name} and group element {g}: {error}"

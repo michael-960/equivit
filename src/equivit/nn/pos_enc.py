@@ -39,10 +39,11 @@ class EquivariantPositionalEncoding(nn.Module):
         dims: List[int],
         use_sparse: bool = True
     ):
-        """
-        """
         super().__init__()
         assert_all_not_quaternionic(action.group)
+
+        self.action = action
+        self.use_sparse = use_sparse
 
         self.dims = dims
         self.proj_calc = GroupActionIrrepProjectionCalculator(action, use_sparse=use_sparse)
@@ -64,9 +65,13 @@ class EquivariantPositionalEncoding(nn.Module):
         self.reset_parameters()
 
     def reset_parameters(self):
-        for coeff in self.coefficients:
-            # xavier uniform for now, we should change this later
-            nn.init.xavier_uniform_(coeff)
+        with torch.no_grad():
+            for coeff in self.coefficients:
+                # xavier uniform for now, we should change this later
+                # nn.init.xavier_uniform_(coeff)
+
+                # small random values
+                nn.init.uniform_(coeff, a=-0.05, b=0.05)
 
     def get_positional_encodings(self) -> List[torch.Tensor]:
         return self.proj_calc(self.coefficients)
@@ -87,6 +92,9 @@ class EquivariantPositionalEncoding(nn.Module):
             x[i] = x[i] + pos_enc[i] # (*, L, Ci, di)
 
         return x
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}(action={self.action}, dims={self.dims}, use_sparse={self.use_sparse})"
 
 
 

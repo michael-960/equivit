@@ -32,6 +32,9 @@ class HoneyViTBackboneConfig:
 
 
 class HoneyViTBackbone(nn.Module):
+    r"""
+    :math:`D_6`-equivariant ViT backbone for images on the honeycomb lattice.
+    """
     def __init__(self, config: HoneyViTBackboneConfig):
         super().__init__()
 

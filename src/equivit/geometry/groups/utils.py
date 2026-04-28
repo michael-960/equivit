@@ -10,7 +10,8 @@ from .representations import GroupRepresentation
 def find_irrep_components(
     rep: GroupRepresentation, 
     irrep: GroupRepresentation,
-    clip_small_values=0.
+    clip_small_values=0.,
+    normalize_to_isometry: bool=False
 ) -> np.ndarray:
     r"""
 
@@ -18,8 +19,6 @@ def find_irrep_components(
     this function finds a basis for :math:`\mathrm{Hom}_G(W, V)`.
 
     We assume that both :math:`V` and :math:`W` are given by orthogonal matrices.
-    The output basis will be orthonormal with respect to the natural inner
-    product on :math:`\mathrm{Hom}(W, V)`. 
 
 
     Args:
@@ -27,6 +26,11 @@ def find_irrep_components(
         irrep: an irreducible representation over :math:`\mathbb{R}`
 
         clip_small_values: small output entries (due to numerical error) will be set to zero
+
+        normalize_to_isometry: If False (default), the output basis will be orthonormal with respect to the natural inner
+        product on :math:`\mathrm{Hom}(W, V)`. Otherwise, the output basis will
+        be normalized so that each basis element is an isometry (i.e. preserves
+        the inner product on :math:`W`).
 
     Returns: 
         an array of shape (multiplicity, irrep_dim, rep_dim)
@@ -83,20 +87,34 @@ def find_irrep_components(
         res = complex_structure.dual_vector_c2r(res, axis=1)
 
     res = np.where(np.abs(res) < clip_small_values, 0., res)
+
+
+    if normalize_to_isometry:
+        # (multiplicity, irrep_dim, irrep_dim)
+        k = res @ res.transpose(0,2,1)
+
+        res = res / np.sqrt(k[:,0,0][:,None,None])
+
     return res
 
 
 
-def decompose_set_action(action: GroupAction) -> Dict[str, List[torch.Tensor]]:
-    """
+def decompose_set_action(
+    action: GroupAction,
+    clip_small_values: float=1e-10,
+    normalize_to_isometry: bool=False) -> Dict[str, List[torch.Tensor]]:
+    r"""
     Given a group action on a set, decompose the corresponding linear representation on
     the vector space spanned by the set elements into irreps. 
 
     Args:
-        action: a GroupAction object
+        action: a :class:`GroupAction` object
+        clip_small_values: small output entries (due to numerical error) will be set to zero (see :func:`find_irrep_components` for details)
+        normalize_to_isometry: If True, the output basis will be normalized to be an isometry (see :func:`find_irrep_components` for details). 
+
     Returns: 
         a dictionary mapping each irrep name to a list of projections, each
-        of shape (n, irrep_dim), where n is the size of the set and irrep_dim is the
+        of shape :math:`(L, d_i)`, where :math:`L` is the size of the set and :math:`d_i`is the
         dimension of the irrep. Each projection is a sparse matrix in COO format.
     """
     group = action.group
@@ -114,7 +132,7 @@ def decompose_set_action(action: GroupAction) -> Dict[str, List[torch.Tensor]]:
     for orbit in orbits:
         orbit_rep = action.restrict_action(orbit).to_linear_representation()
         for irrep_name, irrep in irreps.items():
-            projections = torch.tensor(find_irrep_components(orbit_rep, irrep, clip_small_values=1e-10))
+            projections = torch.tensor(find_irrep_components(orbit_rep, irrep, clip_small_values=clip_small_values, normalize_to_isometry=normalize_to_isometry))
 
             for i in range(projections.shape[0]):
                 irrep_projections[irrep_name].append(

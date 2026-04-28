@@ -347,3 +347,6 @@ class GroupAction:
             rep_matrices[g] = rep_matrix.reshape(rep_dim, rep_dim)
 
         return GroupRepresentation(self.group, rep_matrices)
+    
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}(group={self.group}, num_elements={self.num_elements})"

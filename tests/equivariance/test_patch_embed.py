@@ -11,7 +11,7 @@ import pytest
                          + [equivit.geometry.Honeycomb(N) for N in range(2, 20)]
                          + [equivit.geometry.Triangle(N) for N in range(2, 10)]
                          )
-def test_patch_embed(lattice):
+def test_patch_embed(lattice: equivit.geometry.Lattice):
     """
     Test whether PatchEmbed is equivariant.
     """

@@ -110,15 +110,20 @@ class IrrepBasisHandler(nn.Module):
             # less memory efficient but potentially faster (and simpler)
             for i, basis_vectors in enumerate(basis_vectors_list):
                 # each entry in list has shape (n_copies, num_elements, d)
-                self.register_buffer(f'projections{i}', torch.stack([p.to_dense() for p in basis_vectors], dim=0).to(self.dtypes[i]))
+                if len(basis_vectors) > 0:
+                    self.register_buffer(f'projections{i}', torch.stack([p.to_dense() for p in basis_vectors], dim=0).to(self.dtypes[i]))
+                else:
+                    self.register_buffer(f'projections{i}', torch.empty((0, self.num_elements, self.irrep_dims[i]), dtype=self.dtypes[i]))
 
 
     def forward(self, coefficients: List[torch.Tensor]) -> List[torch.Tensor]:
-        """
-        coefficients: list of tensors, each of shape (ni, Ci) for each irrep
+        r"""
+        Args:
+            coefficients: list of tensors, each of shape :math:`(ni, Ci)` for each irrep
 
-        returns: list of tensors, each of shape (Lpatch, Ci, irrep_dim) 
-                    for each irrep, obtained by linearly combining the projections with the coefficients.
+        Returns:
+            list of tensors, each of shape :math:`(L_{patch}, C_i, d_i)`
+            for each irrep, obtained by linearly combining the projections with the coefficients.
         """
         filts = [None for _ in range(self.num_irreps)]
 
@@ -169,9 +174,6 @@ class GroupActionIrrepProjectionCalculator(IrrepBasisHandler):
         self.irrep_complex_dims = [irrep.dim if irrep.rep_type is IrrepType.REAL else irrep.dim//2
                                for irrep in self.irreps.values()]
 
-        # irrep_real_dims = [irrep.dim for irrep in self.irreps.values()]
-
-
         super().__init__(self.irrep_complex_dims,
                          is_complex=[irrep.rep_type is IrrepType.COMPLEX for irrep in self.irreps.values()], 
                          use_sparse=use_sparse)
@@ -182,7 +184,7 @@ class GroupActionIrrepProjectionCalculator(IrrepBasisHandler):
 
         projection_bases = []
         
-        for i, projs in enumerate(decompose_set_action(self.action).values()):
+        for i, projs in enumerate(decompose_set_action(self.action, normalize_to_isometry=True).values()):
             _ = []
             for p in projs:
                 _indices = p.indices()
@@ -197,6 +199,9 @@ class GroupActionIrrepProjectionCalculator(IrrepBasisHandler):
         # a list of lists of sparse COO tensors, each of shape (|X|, irrep_dim)
         # the outer list is over irreps
         return list(projection_bases)
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}(action={self.action}, use_sparse={self.use_sparse})"
 
 
 

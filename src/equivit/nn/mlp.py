@@ -6,6 +6,9 @@ from .linear import EquivariantLinear
 from .drop import ListDropout
 from typing import Tuple, List
 from ..geometry import Group
+import math
+
+from .init import kaiming_uniform_, complex_kaiming_uniform_
 
 
 
@@ -41,6 +44,8 @@ class EquivariantMLP(nn.Module):
         assert len(dims_in) == _num_irreps, f"Length of dims_in ({len(dims_in)}) must be equal to the number of real irreps of the group ({_num_irreps})"
         assert len(dims_out) == _num_irreps, f"Length of dims_in ({len(dims_out)})must be equal to the number of real irreps of the group ({_num_irreps})"
         assert len(homogeneous_space_copies) == len(group.all_homogeneous_space_actions()), f"Length of homogeneous_space_copies ({len(homogeneous_space_copies)}) must be equal to the number of homogeneous space actions of the group ({len(group.all_homogeneous_space_actions())})"
+
+        self.dims_in = dims_in
         
         # shape: (num_homog_spaces, num_irreps)
         self.multipilcity_matrix = np.array([list(action.irrep_multiplicities().values()) for action in group.all_homogeneous_space_actions()])
@@ -62,6 +67,28 @@ class EquivariantMLP(nn.Module):
         self.fc2 = EquivariantLinear(group, self.dims_hidden, dims_out, trivial_rep_bias=trivial_rep_bias)
 
         self.drop2 = ListDropout(drop_probs[1])
+
+        self.reset_parameters()
+
+    def reset_parameters(self):
+        gain1 = math.sqrt(2)
+
+        with torch.no_grad():
+            for i, weight in enumerate(self.fc1.weights):
+                if weight.numel() > 0:
+                    if weight.dtype.is_complex:
+                        complex_kaiming_uniform_(weight, fan_in=self.dims_in[i], gain=gain1)
+                    else:
+                        kaiming_uniform_(weight, fan_in=self.dims_in[i], gain=gain1)
+
+
+            gain2 = 1.0
+            for i, weight in enumerate(self.fc2.weights):
+                if weight.numel() > 0:
+                    if weight.dtype.is_complex:
+                        complex_kaiming_uniform_(weight, fan_in=self.dims_hidden[i], gain=gain2)
+                    else:
+                        kaiming_uniform_(weight, fan_in=self.dims_hidden[i], gain=gain2)
 
 
     def forward(self, x: List[torch.Tensor]) -> List[torch.Tensor]:

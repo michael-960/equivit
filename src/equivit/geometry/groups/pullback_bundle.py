@@ -124,6 +124,7 @@ class EquivariantPullbackBundle:
         dtype = x.dtype
         if isinstance(x, torch.Tensor):
             tensor_type = 'torch'
+            device = x.device
             x = x.detach().cpu().numpy()
 
         if action_dim < 0:
@@ -146,7 +147,7 @@ class EquivariantPullbackBundle:
             y[_slices_g] = np.einsum('ij, ...j -> ...i', repr(h), x[_slices])
 
         if tensor_type == 'torch':
-            y = torch.from_numpy(y).to(x.device).to(dtype)
+            y = torch.from_numpy(y).to(device).to(dtype)
         else:
             y = y.astype(dtype)
         return y

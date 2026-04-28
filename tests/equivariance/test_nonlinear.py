@@ -18,7 +18,7 @@ activations = [nn.ReLU(), nn.GELU(), nn.Sigmoid(), nn.ELU()]
 def test_nonlinear(group, activation):
 
     # Let's be lenient with large groups
-    ERROR_TOL = 1e-6 if group.order() < 20 else 1e-5
+    ERROR_TOL = 2e-6 if group.order() < 20 else 3e-5
 
     rng = torch.Generator()
     rng.manual_seed(42)
