@@ -25,3 +25,6 @@ from .utils import assert_all_not_quaternionic, act_on_tensors, random_irrep_ten
 
 
 from . import init
+
+from . import vanilla
+

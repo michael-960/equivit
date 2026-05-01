@@ -1,9 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import math
-from typing import Tuple, List
-from timm.layers import trunc_normal_
+from typing import List
 
 class AppendClassToken(nn.Module):
     """
@@ -26,7 +24,7 @@ class AppendClassToken(nn.Module):
     def reset_parameters(self):
         # TODO: In general, I'm not sure what the best initilization scheme is. 
         std = 4*.02
-        trunc_normal_(self.cls_token , std=std)
+        nn.init.trunc_normal_(self.cls_token , std=std)
 
     def forward(self, x: List[torch.Tensor]) -> List[torch.Tensor]:
         """

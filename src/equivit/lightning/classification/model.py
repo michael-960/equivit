@@ -1,8 +1,9 @@
 from typing import Callable, Optional, Any
 import torch.nn as nn
 import torch
-import lightning as L
-import lightning.pytorch.callbacks as LC
+# import lightning as L
+from lightning import LightningModule
+# import lightning.pytorch.callbacks as LC
 
 from dataclasses import dataclass
 
@@ -12,7 +13,7 @@ class TrainingConfig:
     ...
 
 
-class ClassificationModel(L.LightningModule):
+class ClassificationModel(LightningModule):
     """
     A LightningModule for classification tasks.
     """

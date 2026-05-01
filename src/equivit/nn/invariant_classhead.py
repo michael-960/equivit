@@ -59,7 +59,3 @@ class InvariantClassificationHead(nn.Module):
         y = self.head(y)
 
         return y
-
-    @classmethod
-    def from_config(cls, config: dict):
-        return cls(**config)

@@ -23,8 +23,10 @@ class Invariantization(nn.Module):
             Tensor of shape :math:`(*, \sum_i C_i)`
         """
         # The first tensor is the trivial irrep, so it must have shape (..., 1). We squeeze the last dimension.
-        return torch.cat([y.norm(dim=-1) if i > 0 else y.squeeze(-1)
-                          for i,y in enumerate(x)], dim=-1)
+
+        # return torch.cat([y.norm(dim=-1) if i > 0 else y.squeeze(-1)
+        #                 for i,y in enumerate(x)], dim=-1)
+        return torch.cat([x[0].squeeze(-1)] + [y.norm(dim=-1, keepdim=True).squeeze(-1) for y in x[1:]], dim=-1)
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}()"
