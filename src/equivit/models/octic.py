@@ -80,6 +80,7 @@ class OcticViTBackbone(nn.Module):
 
         group = self.square1.action.group.subgroup(*config.subgroup).source
         config.transformer_block_config.group = group
+
         self.blocks = nn.ModuleList([
             eqnn.EquivariantTransformerBlock(config.transformer_block_config)
             for _ in range(config.depth)

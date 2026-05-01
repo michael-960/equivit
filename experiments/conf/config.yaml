@@ -1,0 +1,22 @@
+
+module:
+  model: "${include:conf/model/octic.yaml}"
+  loss_fn:
+    _target_: torch.nn.CrossEntropyLoss
+
+  optimizer_factory:
+    _target_: torch.optim.AdamW
+    _partial_: True
+    lr: 1e-3
+    betas: [0.9, 0.999]
+
+callbacks: {}
+
+trainer:
+  _target_: lightning.Trainer
+  max_epochs: 10
+
+  accelerator: "auto"
+  devices: "auto"
+
+

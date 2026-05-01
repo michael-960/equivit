@@ -1,7 +1,8 @@
 import hydra
-from hydra.utils import instantiate
-from omegaconf import DictConfig
+from hydra.utils import instantiate, to_absolute_path
+from omegaconf import DictConfig, OmegaConf
 import lightning as L
+
 
 
 @hydra.main(version_base=None, config_path="conf")
@@ -11,7 +12,7 @@ def main(cfg: DictConfig):
     module = instantiate(cfg.module)
     
     # 2. Build the Data (LightningDataModule)
-    datamodule = instantiate(cfg.datamodule)
+    # datamodule = instantiate(cfg.datamodule)
     
     # 3. Build the Specialists (Callbacks & Loggers)
     # We use .values() to iterate over the dictionary of callbacks in the YAML
@@ -22,6 +23,14 @@ def main(cfg: DictConfig):
     
     # 4. Build the Engineer (The Trainer)
     trainer = instantiate(cfg.trainer, callbacks=callbacks, logger=logger)
+
+    print(module.model)
+
+
+    print("done building, starting training loop...")
+
+    # return here to test the building process without starting training
+    return 
     
     # 5. Start the Engine!
     # By passing ckpt_path, we enable the seamless pausing/resuming we discussed

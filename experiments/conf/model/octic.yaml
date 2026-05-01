@@ -1,0 +1,23 @@
+_target_: equivit.models.build_named_sequential
+backbone: 
+  _target_: equivit.models.OcticViTBackbone
+  config: 
+    _target_: equivit.models.OcticViTBackboneConfig
+    in_channels: 3
+    depth: 12
+    img_size: 128
+    patch_size: 16
+    dims: [64,64,64,64,64]
+    subgroup: ['D', 4, 0]
+
+    transformer_block_config: 
+      _target_: equivit.nn.EquivariantTransformerBlockConfig
+      attn_type: coupled
+      num_heads: 8
+      homogeneous_space_copies: [32,32,32,32, 32,32,32,32]
+
+head: 
+  _target_: equivit.nn.InvariantClassificationHead
+  dim: 320
+  num_logits: 10
+

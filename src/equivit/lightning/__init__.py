@@ -6,3 +6,5 @@ Currently, only classification training is implemented.
 
 TODO: segmentation
 """
+
+from .classification import ClassificationModel

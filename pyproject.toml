@@ -8,6 +8,13 @@ description = "Build and test equivariant Vision Transformers."
 readme = "README.md"
 requires-python = ">=3.12"
 
+dependencies = [
+    "timm>=1.0.26",
+    "einops>=0.8.2",
+    "matplotlib>=3.10.9",
+    "lightning>=2.6.1"
+]
+
 [project.urls]
 Homepage = "https://github.com/michael-960/equivit"
 

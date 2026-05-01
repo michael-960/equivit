@@ -7,10 +7,9 @@ import lightning.pytorch.callbacks as LC
 from dataclasses import dataclass
 
 
-
-class TrainingConfig(dataclass):
+@dataclass
+class TrainingConfig:
     ...
-
 
 
 class ClassificationModel(L.LightningModule):
@@ -31,19 +30,20 @@ class ClassificationModel(L.LightningModule):
         self.optimizer_factory = optimizer_factory
         self.scheduler_factory = scheduler_factory
         self.config = config
+
         
     def training_step(self, batch, batch_idx):
         x, y = batch
         logits = self.model(x)
         loss = self.loss_fn(logits, y)
-        self.log('train_loss', loss)
+        self.log('train_loss', loss, prog_bar=True)
         return loss
 
     def validation_step(self, batch, batch_idx):
         x, y = batch
         logits = self.model(x)
         loss = self.loss_fn(logits, y)
-        self.log('val_loss', loss)
+        self.log('val_loss', loss, prog_bar=True)
         return loss
 
     def configure_optimizers(self):

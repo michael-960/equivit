@@ -14,3 +14,8 @@ from .geometry import DihedralGroup, CyclicGroup, TRIVIAL_GROUP
 from .geometry import Lattice, Hexagon, Triangle, Square, Honeycomb
 
 from .nn import act_on_tensors, random_irrep_tensors, induced_action_on_tensors
+
+from . import lightning
+
+
+from .version import __version__
