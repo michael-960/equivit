@@ -1,0 +1,21 @@
+_target_: equivit.models.build_named_sequential
+
+backbone: 
+  _target_: equivit.models.ViTBackbone
+  config: 
+    _target_: equivit.models.ViTBackboneConfig
+    in_channels: 3
+    depth: 12
+    img_size: 256
+    patch_size: 16
+    dim: 192
+
+    transformer_block_config: 
+      _target_: equivit.nn.vanilla.TransformerBlockConfig
+      num_heads: 8
+      dim_mlp: 384
+
+head: 
+  _target_: equivit.nn.vanilla.ClassificationHead
+  dim: 192
+  num_logits: 38

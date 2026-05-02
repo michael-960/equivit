@@ -1,22 +1,47 @@
+defaults:
+  - model: octic
+  - data: patternnet
+  - _self_
 
-module:
-  model: "${include:conf/model/octic.yaml}"
-  loss_fn:
-    _target_: torch.nn.CrossEntropyLoss
+compile: true
 
-  optimizer_factory:
-    _target_: torch.optim.AdamW
-    _partial_: True
-    lr: 1e-3
-    betas: [0.9, 0.999]
 
-callbacks: {}
+optimizer:
+  _target_: torch.optim.AdamW
+  _partial_: true
+  lr: 0.001
+  betas: [0.9, 0.999]
+
+
+loss_fn:
+  _target_: torch.nn.CrossEntropyLoss
+
 
 trainer:
   _target_: lightning.Trainer
-  max_epochs: 10
+  max_epochs: 50
+  accelerator: auto
+  devices: auto
+  enable_progress_bar: true
 
-  accelerator: "auto"
-  devices: "auto"
 
+callbacks:
+  model_checkpoint:
+    _target_: pytorch_lightning.callbacks.ModelCheckpoint
+    dirpath:  "${hydra:runtime.output_dir}/checkpoints"
+    monitor: val_loss
+    mode: min
+    save_top_k: 2
+    save_last: true
+
+  equivariant_linear_grad:
+    _target_: equivit.lightning.EquivariantLinearGradientNorm
+    norm_type: 2.0
+
+
+loggers:
+  mlflow:
+    _target_: pytorch_lightning.loggers.MLFlowLogger
+    experiment_name: "equivit-test"
+    tracking_uri: "file:${hydra:runtime.cwd}/mlruns"
 

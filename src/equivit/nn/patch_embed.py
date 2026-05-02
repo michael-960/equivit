@@ -147,7 +147,10 @@ class EquivariantPatchEmbed(nn.Module):
         # 2. collect all filters into a single matrix of shape (Lpatch*C, sum_i Ci*di) and do a single matmul (maybe once for real irreps and once for complex irreps)
         for i in range(self.proj_calc.num_irreps):
             if self.is_complex[i]:
-                outs[i] = (x @ filts[i].view(torch.float32)).view(torch.complex64).unflatten(-1, (self.out_channels[i], self.irrep_dims[i])) # (*, Ci, di)
+                # outs[i] = (x @ filts[i].view(torch.float32)).view(torch.complex64).unflatten(-1, (self.out_channels[i], self.irrep_dims[i])) # (*, Ci, di)
+                outs[i] = torch.view_as_complex(
+                                                (x @ torch.view_as_real(filts[i]).flatten(-2,-1)).unflatten(-1, (-1, 2))
+                                ).unflatten(-1, (self.out_channels[i], self.irrep_dims[i])) # (*, Ci, di)
             else:
                 outs[i] = (x @ filts[i]).unflatten(-1, (self.out_channels[i], self.irrep_dims[i])) # (*, Ci, di)
         return outs

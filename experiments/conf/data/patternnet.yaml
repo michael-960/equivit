@@ -1,0 +1,31 @@
+train_loader:
+  _target_: torch.utils.data.DataLoader
+  dataset: 
+    _target_: equivit.data.PatternNet
+    split: "train"
+
+    transform: 
+      _target_: torchvision.transforms.Compose
+      transforms: 
+        - _target_: torchvision.transforms.ToTensor
+
+  batch_size: 16
+  num_workers: 4
+  shuffle: true
+
+
+val_loader:
+  _target_: torch.utils.data.DataLoader
+  dataset: 
+    _target_: equivit.data.PatternNet
+    split: "val"
+
+    transform: 
+      _target_: torchvision.transforms.Compose
+      transforms: 
+        - _target_: torchvision.transforms.ToTensor
+
+  batch_size: 16
+  num_workers: 4
+  shuffle: false
+

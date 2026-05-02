@@ -13,17 +13,17 @@ backbone:
     depth: 12
     img_size: 256
     patch_size: 16
-    dims: [16,16,16,16,32]
+    dims: [32,32,32,32,64]
     subgroup: ['D', 4, 0]
 
     transformer_block_config: 
       _target_: equivit.nn.EquivariantTransformerBlockConfig
       attn_type: irrepwise
-      num_heads: [2, 2, 2, 2, 4]
-      homogeneous_space_copies: [256, 0, 0, 0,  0, 0, 0, 0]
+      num_heads: [2,2,2,2,4]
+      homogeneous_space_copies: [32,32,32,32, 32,32,32,32]
       activation: 'gelu'
 
 head: 
   _target_: equivit.nn.InvariantClassificationHead
-  dim: 96
+  dim: 192
   num_logits: 38

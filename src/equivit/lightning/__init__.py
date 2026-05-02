@@ -7,4 +7,6 @@ Currently, only classification training is implemented.
 TODO: segmentation
 """
 
-from .classification import ClassificationModel
+from .classification import *
+
+from .log_gradient import EquivariantLinearGradientNorm

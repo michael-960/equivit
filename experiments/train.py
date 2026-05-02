@@ -1,47 +1,36 @@
 import hydra
-from hydra.utils import instantiate, to_absolute_path
-from omegaconf import DictConfig, OmegaConf
+from hydra.utils import instantiate
+from omegaconf import DictConfig
 import lightning as L
 
+import equivit
+from equivit.lightning import ClassificationModel, ClassificationDataModule
+import torch
 
 
-@hydra.main(version_base=None, config_path="conf")
+@hydra.main(version_base=None, config_path="conf", config_name="config")
 def main(cfg: DictConfig):
-    # 1. Build the Science (The LightningModule we just designed)
-    # Hydra will recursively build the nn.Module, criterion, and factories first!
-    module = instantiate(cfg.module)
-    
-    # 2. Build the Data (LightningDataModule)
-    # datamodule = instantiate(cfg.datamodule)
-    
-    # 3. Build the Specialists (Callbacks & Loggers)
-    # We use .values() to iterate over the dictionary of callbacks in the YAML
-    callbacks = [instantiate(cb) for cb in cfg.get("callbacks", {}).values()]
-    
-    # Instantiate the logger if defined, otherwise let Lightning use its default
-    logger = instantiate(cfg.logger) if "logger" in cfg else True
-    
-    # 4. Build the Engineer (The Trainer)
-    trainer = instantiate(cfg.trainer, callbacks=callbacks, logger=logger)
 
-    print(module.model)
+    module = ClassificationModel(
+                model_cfg=cfg.model, 
+                loss_fn_cfg=cfg.loss_fn, 
+                optimizer_cfg=cfg.optimizer,
+                compile=cfg.compile
+            )
+
+    data_module = ClassificationDataModule(
+                    train_loader_cfg=cfg.data.train_loader,
+                    val_loader_cfg=cfg.data.val_loader
+                ) 
 
 
-    print("done building, starting training loop...")
+    callbacks = [instantiate(cb_cfg) for cb_cfg in cfg.callbacks.values()]
+    loggers = [instantiate(logger_cfg) for logger_cfg in cfg.loggers.values()]
 
-    # return here to test the building process without starting training
-    return 
-    
-    # 5. Start the Engine!
-    # By passing ckpt_path, we enable the seamless pausing/resuming we discussed
-    trainer.fit(
-        model=module, 
-        datamodule=datamodule,
-        ckpt_path=cfg.get("ckpt_path")
-    )
-    
-    # Optional: Automatically run the test set after training completes
-    # trainer.test(model=module, datamodule=datamodule)
+    trainer: L.Trainer = instantiate(cfg.trainer, callbacks=callbacks, logger=loggers)
+
+    trainer.fit(module, datamodule=data_module)
+
 
 if __name__ == "__main__":
     main()

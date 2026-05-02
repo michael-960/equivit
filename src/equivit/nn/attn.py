@@ -126,12 +126,20 @@ class EquivariantCoupledAttention(nn.Module):
             list of tensors, each of shape :math:`(*, L, C_i, d_i)`
         """
 
-        # (*, L, 3, H, Ci/H * Di)
-
         common_shape = x[0].shape[:-2] # (*, L)
 
-        qkvs = [qkv.view(torch.float32).view(*common_shape, 3, self.num_heads, -1) # (*, L, 3, H, Ci/H * Di)
-                for qkv in self.qkv(x)]
+        # qkvs = [qkv.view(torch.float32).view(*common_shape, 3, self.num_heads, -1) # (*, L, 3, H, Ci/H * Di)
+                # for qkv in self.qkv(x)]
+        qkvs = []
+        for i, qkv_i in enumerate(self.qkv(x)):
+            # qkv_i has shape (*, L, 3*Ci, di)
+            if self.is_complex[i]:
+                qkv_i = torch.view_as_real(qkv_i).flatten(-2).view(*common_shape, 3, self.num_heads, -1)
+            else:
+                qkv_i = qkv_i.view(*common_shape, 3, self.num_heads, -1)
+
+            # qkv_i has shape (*, L, 3, H, Ci/H * Di)
+            qkvs.append(qkv_i)
 
         qkvs = torch.cat(qkvs, dim=-1) # (*, L, 3, H, sum_i Ci/H * Di)
 
@@ -150,7 +158,7 @@ class EquivariantCoupledAttention(nn.Module):
         y = [z.reshape(*common_shape, self.dims[i], self.irrep_real_dims[i]).contiguous() for i, z in enumerate(y)] 
         # list of (*, L, Ci, Di) where Di is the real dimension of the irrep
 
-        y = [z.view(torch.complex64) if self.is_complex[i] else z for i, z in enumerate(y)]
+        y = [torch.view_as_complex(z.unflatten(-1, (-1, 2))) if self.is_complex[i] else z for i, z in enumerate(y)]
         # list of real or complex tensors, each of shape (*, L, Ci, di) where di is the (complex) dimension of the irrep
 
         return self.proj_drop(self.proj(y))
@@ -195,9 +203,13 @@ class EquivariantIrrepwiseAttention(nn.Module):
 
         self.is_complex = [irrep.rep_type is IrrepType.COMPLEX for irrep in self.irreps.values()]
 
-        self.dims = dims
-        self.num_heads = num_heads
+        self.dims = list(dims)
+        self.num_heads = list(num_heads)
         self.attn_dims = [c // h for c,h in zip(dims, num_heads)]
+
+        self.trivial_rep_attn_bias = trivial_rep_attn_bias
+        self.trivial_rep_proj_bias = trivial_rep_proj_bias
+
 
         self.qkv = EquivariantLinear(
             group=group,
@@ -256,9 +268,21 @@ class EquivariantIrrepwiseAttention(nn.Module):
 
             # (*, L, num_heads_i, Ci//num_heads_i * di)  if real
             # (*, L, num_heads_i, Ci//num_heads_i * di*2) if complex 
-            q_i = qkv_i.select(-3, 0).view(torch.float32)
-            k_i = qkv_i.select(-3, 1).view(torch.float32)
-            v_i = qkv_i.select(-3, 2).view(torch.float32)
+
+            # this breaks the graph!
+            # q_i = qkv_i.select(-3, 0).view(torch.float32)
+            # k_i = qkv_i.select(-3, 1).view(torch.float32)
+            # v_i = qkv_i.select(-3, 2).view(torch.float32)
+
+            q_i = qkv_i.select(-3, 0)
+            k_i = qkv_i.select(-3, 1)
+            v_i = qkv_i.select(-3, 2)
+
+            if self.is_complex[i]:
+                q_i = torch.view_as_real(q_i).flatten(-2)
+                k_i = torch.view_as_real(k_i).flatten(-2)
+                v_i = torch.view_as_real(v_i).flatten(-2)
+
 
             y_i = F.scaled_dot_product_attention(
                             q_i.movedim(-3,-2),  # (*, num_heads_i, L, Ci//num_heads*di) (real) or (*, num_heads_i, L, Ci//num_heads*di*2) (complex)

@@ -1,7 +1,7 @@
 import torch.nn as nn
 import torch
 import torch.nn.functional as F
-from typing import Tuple, Callable, List, Union, Literal
+from typing import Tuple, List, Union, Literal, Optional
 
 from dataclasses import dataclass
 
@@ -25,6 +25,9 @@ class EquivariantTransformerBlockConfig:
     attn_drop: float = 0.
     trivial_rep_proj_bias: bool = True
     proj_drop: float = 0.
+
+    activation: str = 'relu'
+    activation_kw: Optional[dict] = None
 
     trivial_rep_mlp_bias: bool = True
     mlp_drop_probs: Tuple[float, float] = (0.,0.)
@@ -63,7 +66,7 @@ class EquivariantTransformerBlock(nn.Module):
         self.norm1 = EquivariantLayerNorm(config.dims)
 
         if config.attn_type == 'irrepwise':
-            assert isinstance(config.num_heads, list), "num_heads should be a list of the same length as dims for irrepwise attention"
+            # assert isinstance(config.num_heads, list), "num_heads should be a list of the same length as dims for irrepwise attention"
             self.attn = EquivariantIrrepwiseAttention(
                             group=config.group,
                             dims=config.dims,
@@ -74,7 +77,7 @@ class EquivariantTransformerBlock(nn.Module):
                             proj_drop=config.proj_drop
                         )
         elif config.attn_type == 'coupled':
-            assert isinstance(config.num_heads, int), "num_heads should be an integer for coupled attention"
+            # assert isinstance(config.num_heads, int), "num_heads should be an integer for coupled attention"
             self.attn = EquivariantCoupledAttention(
                             group=config.group,
                             dims=config.dims,
@@ -100,7 +103,9 @@ class EquivariantTransformerBlock(nn.Module):
             dims_out=config.dims,
             trivial_rep_bias=config.trivial_rep_mlp_bias,
             drop_probs=config.mlp_drop_probs,
-            norm_layer=None
+            norm_layer=None,
+            activation=config.activation,
+            activation_kw=config.activation_kw
         )
 
         if config.ls_init_values is not None:

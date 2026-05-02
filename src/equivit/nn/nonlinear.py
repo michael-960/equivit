@@ -4,7 +4,7 @@ import torch.nn as nn
 from typing import List, Optional, Callable
 
 from ..geometry import GroupAction, decompose_set_action, Group, IrrepType
-from .utils import assert_all_not_quaternionic
+from .utils import assert_all_not_quaternionic, get_activation_function
 
 
 
@@ -60,7 +60,9 @@ class EquivariantNonlinear(nn.Module):
     def __init__(self,
         group: Group,
         homogeneous_space_copies: List[int],
-        activation: Callable=nn.ReLU(),
+        # activation: Callable=nn.ReLU(),
+        activation: str='relu',
+        activation_kw: Optional[dict]=None
     ):
         super().__init__()
         self.group = group
@@ -68,14 +70,14 @@ class EquivariantNonlinear(nn.Module):
         self.homogeneous_space_copies = homogeneous_space_copies
         self.num_homog_spaces = len(homogeneous_space_copies)
         
-        self.activation = activation
+        self.activation = get_activation_function(activation, **(activation_kw or {}))
 
         self.homog_actions = self.group.all_homogeneous_space_actions()
         assert len(homogeneous_space_copies) == len(self.homog_actions), "Length of homogeneous_space_copies must match the number of homogeneous spaces of the group."   
 
         self.fouriers = nn.ModuleList([Fourier(action) for action in self.homog_actions])
 
-        # the i-th item of this list is the list of irrep multiplicities of the i-th homogeneous spac
+        # the i-th item of this list is the list of irrep multiplicities of the i-th homogeneous space
         self.multiplicities = [
             fourier.irrep_multiplicities for fourier in self.fouriers
         ]
@@ -216,8 +218,10 @@ class Fourier(nn.Module):
         - di is the complex dimension of the i-th irrep
         """
         return torch.matmul(torch.cat(
-                [z.view(torch.float32).flatten(-2, -1) for z in x], 
-                # note: if z is complex, then z.view(torch.float32) will have shape (*, Ri, di*2)
+                [# z.view(torch.float32).flatten(-2, -1) 
+                torch.view_as_real(z).flatten(-3, -1) if self.is_complex[i] 
+                else z.flatten(-2, -1)
+                for i,z in enumerate(x)], 
                 dim=-1),
                 self.matrix.t()
         )

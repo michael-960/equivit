@@ -1,4 +1,5 @@
 import torch
+import torch.nn as nn
 from typing import List, Optional, Callable
 from ..geometry import Group, IrrepType, GroupElement, GroupAction, EquivariantPullbackBundle
 
@@ -162,3 +163,33 @@ def induced_action_on_tensors(
             real_dtype = torch.float32 if dtype == torch.complex64 else torch.float64
             y.append(bundle.act_on_section(g, x[i].view(real_dtype), irrep).contiguous().view(dtype))
     return y
+
+
+def get_activation_function(name: str, **kw) -> Callable:
+    """
+    Get the activation function by name.
+
+    Args:
+        name: the name of the activation function. Supported values are 'relu', 'gelu', 'silu', 'tanh', 'sigmoid'.
+
+    Returns:
+        the activation function
+    """
+    _act_dict = {
+        'relu': nn.ReLU,
+        'gelu': nn.GELU,
+        'silu': nn.SiLU,
+        'tanh': nn.Tanh,
+        'sigmoid': nn.Sigmoid,
+        'leaky_relu': nn.LeakyReLU,
+        'elu': nn.ELU,
+        'selu': nn.SELU,
+        'relu6': nn.ReLU6,
+        'celu': nn.CELU
+    }    
+
+
+    if name not in _act_dict:
+        raise ValueError(f"Unsupported activation function: {name}. Supported values are {list(_act_dict.keys())}")
+
+    return _act_dict[name](**kw)

@@ -1,0 +1,35 @@
+train_loader:
+  _target_: torch.utils.data.DataLoader
+  dataset: 
+    _target_: torchvision.datasets.CIFAR10
+    root: "~/storage/data/CIFAR10"
+    train: true
+    transform: 
+      _target_: torchvision.transforms.Compose
+      transforms: 
+        - _target_: torchvision.transforms.ToTensor
+        # - _target_: torchvision.transforms.Resize
+        #   size: 128
+
+  batch_size: 64
+  num_workers: 4
+  shuffle: true
+
+
+val_loader:
+  _target_: torch.utils.data.DataLoader
+  dataset: 
+    _target_: torchvision.datasets.CIFAR10
+    root: "~/storage/data/CIFAR10"
+    train: false
+    transform: 
+      _target_: torchvision.transforms.Compose
+      transforms: 
+        - _target_: torchvision.transforms.ToTensor
+        # - _target_: torchvision.transforms.Resize
+        #   size: 128
+
+  batch_size: 64
+  num_workers: 4
+  shuffle: false
+

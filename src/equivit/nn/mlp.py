@@ -4,7 +4,7 @@ import numpy as np
 from .nonlinear import EquivariantNonlinear
 from .linear import EquivariantLinear
 from .drop import ListDropout
-from typing import Tuple, List
+from typing import Tuple, List, Optional
 from ..geometry import Group
 import math
 
@@ -33,7 +33,8 @@ class EquivariantMLP(nn.Module):
         dims_in: List[int],
         homogeneous_space_copies: List[int],
         dims_out: List[int],
-        activation: nn.Module = nn.ReLU(),
+        activation: str = 'relu',
+        activation_kw: Optional[dict] = None,
         trivial_rep_bias: bool = True,
         drop_probs: Tuple[float, float] = (0.,0.),
         norm_layer = None
@@ -55,7 +56,7 @@ class EquivariantMLP(nn.Module):
 
         self.fc1 = EquivariantLinear(group, dims_in, self.dims_hidden, trivial_rep_bias=trivial_rep_bias)
 
-        self.act = EquivariantNonlinear(group, homogeneous_space_copies, activation=activation)
+        self.act = EquivariantNonlinear(group, homogeneous_space_copies, activation=activation, activation_kw=activation_kw)
 
         self.drop1 = ListDropout(drop_probs[0])
 
@@ -71,9 +72,8 @@ class EquivariantMLP(nn.Module):
         self.reset_parameters()
 
     def reset_parameters(self):
-        gain1 = math.sqrt(2)
-
         with torch.no_grad():
+            gain1 = math.sqrt(2)
             for i, weight in enumerate(self.fc1.weights):
                 if weight.numel() > 0:
                     if weight.dtype.is_complex:
