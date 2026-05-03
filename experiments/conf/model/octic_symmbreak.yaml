@@ -1,0 +1,61 @@
+_target_: equivit.models.build_named_sequential
+
+preprocess:
+  _target_: torch.nn.Flatten
+  start_dim: -2
+  end_dim: -1
+
+backbone: 
+  _target_: equivit.models.build_named_sequential
+  tokenization_stem:
+    _target_: equivit.models.OcticTokenize
+    config:
+      _target_: equivit.models.OcticTokenizeConfig
+      img_size: 256
+      patch_size: 16
+      in_channels: 3
+      dims: [16,16,16,16,32]
+
+  transformer:
+    _target_: equivit.nn.SymmetryBreakingTransformer
+    config:
+      _target_: equivit.nn.SymmetryBreakingTransformerConfig
+      attn_type: 'irrepwise'
+      activation: 'gelu'
+      group:
+        _target_: equivit.DihedralGroup
+        n: 4
+
+      transformer_configs:
+        - _target_: equivit.nn.EquivariantTransformerConfig
+          subgroup: ['D', 4, 0] # D4
+          depth: 3
+          dims: [16,16,16,16,32] # 128
+          num_heads: [2,2,2,2,4]
+          homogeneous_space_copies: [32, 0, 0, 0,  0, 0, 0, 0] # 256
+
+        - _target_: equivit.nn.EquivariantTransformerConfig
+          subgroup: ['C', 4] # C4
+          depth: 3
+          dims: [32,32,32]
+          num_heads: [4,4,4]
+          homogeneous_space_copies: [64, 0, 0]
+
+        - _target_: equivit.nn.EquivariantTransformerConfig
+          subgroup: [2] # C2
+          depth: 3
+          dims: [64,64]
+          num_heads: [8,4]
+          homogeneous_space_copies: [128, 0]
+
+        - _target_: equivit.nn.EquivariantTransformerConfig
+          subgroup: [1] # trivial
+          depth: 3
+          dims: [128]
+          num_heads: [16]
+          homogeneous_space_copies: [256]
+
+head: 
+  _target_: equivit.nn.InvariantClassificationHead
+  dim: 128
+  num_logits: 38

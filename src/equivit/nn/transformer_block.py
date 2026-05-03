@@ -32,7 +32,7 @@ class EquivariantTransformerBlockConfig:
     trivial_rep_mlp_bias: bool = True
     mlp_drop_probs: Tuple[float, float] = (0.,0.)
 
-    ls_init_values=None
+    ls_init_values: Optional[float] = None
     # norm_layer: Callable = None, 
     drop_path: float=0.
 
@@ -92,6 +92,7 @@ class EquivariantTransformerBlock(nn.Module):
             self.ls1 = ListLayerScale(config.dims, init_values=config.ls_init_values)
         else:
             self.ls1 = nn.Identity()
+
         self.drop_path_1 = ListDropPath(config.drop_path) if config.drop_path > 0. else nn.Identity()
 
         self.norm2 = EquivariantLayerNorm(config.dims)
@@ -112,6 +113,7 @@ class EquivariantTransformerBlock(nn.Module):
             self.ls2 = ListLayerScale(config.dims, init_values=config.ls_init_values)
         else:
             self.ls2 = nn.Identity()
+
         self.drop_path_2 = ListDropPath(config.drop_path) if config.drop_path > 0. else nn.Identity()
 
         self.sample_drop_ratio = config.drop_path

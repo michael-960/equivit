@@ -8,7 +8,8 @@ from typing import List, Dict, Any, Union
 from .. import nn as eqnn
 
 
-class LogGradientNorm(Callback):
+
+class LogParamNorm(Callback):
     def __init__(self,
         layer_types: List[Union[str, type]],
         norm_type: float = 2.0,
@@ -16,8 +17,7 @@ class LogGradientNorm(Callback):
     ):
         super().__init__()
         self.norm_type = norm_type
-
-        self.log_freq = log_freq 
+        self.log_freq = log_freq
 
         self.layer_types = []
         for lt in layer_types:
@@ -53,13 +53,12 @@ class LogGradientNorm(Callback):
     def on_before_optimizer_step(self, trainer, pl_module, optimizer):
         if trainer.global_step % self.log_freq == 0:
             for name, layer in self._layer_map.items():
-                # Collect gradients for this specific layer's parameters
                 for pname, p in layer.named_parameters():
-                    if p.grad is not None:
-                        grad_norm = torch.norm(p.grad.detach(), self.norm_type)
-                        pl_module.log(
-                            f"grad_norm/{name}.{pname}", 
-                            grad_norm, 
-                            on_step=True, 
-                            on_epoch=False
-                        )
+                    param_norm = torch.norm(p.detach(), self.norm_type)
+
+                    pl_module.log(
+                        f"param_norm/{name}.{pname}", 
+                        param_norm, 
+                        on_step=True, 
+                        on_epoch=False
+                    )

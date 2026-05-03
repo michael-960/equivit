@@ -4,11 +4,14 @@ backbone:
   _target_: equivit.models.ViTBackbone
   config: 
     _target_: equivit.models.ViTBackboneConfig
-    in_channels: 3
-    depth: 12
-    img_size: 256
-    patch_size: 16
     dim: 192
+    depth: 12
+
+    tokenizer_config: 
+      _target_: equivit.models.TokenizerConfig
+      img_size: 256
+      patch_size: 16
+      in_channels: 3
 
     transformer_block_config: 
       _target_: equivit.nn.vanilla.TransformerBlockConfig

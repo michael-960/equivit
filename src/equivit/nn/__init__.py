@@ -23,6 +23,10 @@ from .restriction import SymmetryRestriction
 
 from .utils import assert_all_not_quaternionic, act_on_tensors, random_irrep_tensors , induced_action_on_tensors
 
+from .interpolate import CropAndInterpolate
+
+from .symm_break_transformer import SymmetryBreakingTransformerConfig, SymmetryBreakingTransformer, EquivariantTransformerConfig
+
 
 from . import init
 

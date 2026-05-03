@@ -7,16 +7,15 @@ import einops
 
 from dataclasses import dataclass
 
-from ..geometry import Square
+from ..geometry import Square, D4
 
 from .. import nn as eqnn
 
 
-
 @dataclass
-class OcticViTBackboneConfig:
+class OcticTokenizeConfig:
     r"""
-    Config dataclass for the :class:`OcticViTBackbone` model.
+    Config dataclass for the :class:`OcticTokenize` module.
     """
     img_size: int 
     """Size of input image (assumed to be square)."""
@@ -24,39 +23,52 @@ class OcticViTBackboneConfig:
     patch_size: int 
     """Number of pixels on each side of one patch (assumed to be square)."""
 
-    dims: List[int]
-    """Number of channels for each irrep."""
+    in_channels: int
+    """Number of channels in the input image."""
 
-    transformer_block_config: eqnn.EquivariantTransformerBlockConfig
+    dims: List[int] = None
+    """Number of channels for each irrep."""
 
     subgroup: tuple = ('D', 4, 0)
     """Subgroup for the equivariant operations. See :meth:`equivit.geometry.DihedralGroup.subgroup` for details."""
 
-    in_channels: int = 3 # input channel
-    """Number of channels in the input image."""
+
+@dataclass
+class OcticViTBackboneConfig:
+    r"""
+    Config dataclass for the :class:`OcticViTBackbone` model.
+    """
+    dims: List[int]
+
+    tokenizer_config: OcticTokenizeConfig
+
+    transformer_block_config: eqnn.EquivariantTransformerBlockConfig
 
     depth: int = 12
     """Number of transformer blocks."""
 
+    subgroup: tuple = ('D', 4, 0)
+    """Subgroup for the equivariant operations. See :meth:`equivit.geometry.DihedralGroup.subgroup` for details."""
+
     def __post_init__(self):
+        self.tokenizer_config.dims = self.dims
+        self.tokenizer_config.subgroup = self.subgroup
+
         self.transformer_block_config.dims = self.dims
+        self.transformer_block_config.group = D4.subgroup(*self.subgroup).source
 
 
-
-class OcticViTBackbone(nn.Module):
+class OcticTokenize(nn.Module):
     r"""
-        :math:`D_4`-equivariant Vision Transformer backbone for images defined on a square grid 
-        (`arXiv:2505.15441 <https://arxiv.org/abs/2505.15441>`_).
-        The :math:`D_4` symmetry can be optionally broken to a subgroup (e.g.,
-        :math:`C_4` or :math:`C_2`) by specifying the ``subgroup`` parameter in
-        the config.
+    Tokenize a square image.
 
-        Args:
-            config: An instance of :class:`OcticViTBackboneConfig` containing the configuration parameters for the model.
+    rearrange input image of shape :math:`(B, C, N^2)` to :math:`(B, (N/P)^2, P^2,C)
+    -> :class:`EquivariantPatchEmbed` 
+    -> :class:`EquivariantPositionalEncoding`
+    -> :class:`AppendClassToken`
     """
-    def __init__(self, config: OcticViTBackboneConfig):
+    def __init__(self, config: OcticTokenizeConfig):
         super().__init__()
-        # eqnn.EquivariantPatchEmbed()
         assert config.img_size % config.patch_size == 0, f'Image size {config.img_size} must be divisible by patch size {config.patch_size}'
         self.img_size = config.img_size
         self.patch_size = config.patch_size
@@ -64,7 +76,6 @@ class OcticViTBackbone(nn.Module):
 
         self.square1 = Square(self.n_patches-1)
         self.square2 = Square(self.patch_size-1)
-
 
         patch_action = self.square2.action
         self.patch_embed = eqnn.EquivariantPatchEmbed(
@@ -78,15 +89,7 @@ class OcticViTBackbone(nn.Module):
 
         self.add_cls_token = eqnn.AppendClassToken(config.dims[0])
 
-        group = self.square1.action.group.subgroup(*config.subgroup).source
-        config.transformer_block_config.group = group
-
-        self.blocks = nn.ModuleList([
-            eqnn.EquivariantTransformerBlock(config.transformer_block_config)
-            for _ in range(config.depth)
-        ])
-
-    def tokenization_stem(self, x: torch.Tensor) -> List[torch.Tensor]:
+    def forward(self, x: torch.Tensor) -> List[torch.Tensor]:
         """
         Applies patch embedding, positional encoding, and appends a class token to the input image tensor.
 
@@ -107,8 +110,31 @@ class OcticViTBackbone(nn.Module):
         x = self.pos_enc(x)
         return self.add_cls_token(x)
 
+
+
+class OcticViTBackbone(nn.Module):
+    r"""
+        :math:`D_4`-equivariant Vision Transformer backbone for images defined on a square grid 
+        (`arXiv:2505.15441 <https://arxiv.org/abs/2505.15441>`_).
+        The :math:`D_4` symmetry can be optionally broken to a subgroup (e.g.,
+        :math:`C_4` or :math:`C_2`) by specifying the ``subgroup`` parameter in
+        the config.
+
+        Args:
+            config: An instance of :class:`OcticViTBackboneConfig` containing the configuration parameters for the model.
+    """
+    def __init__(self, config: OcticViTBackboneConfig):
+        super().__init__()
+
+        self.tokenization_stem = OcticTokenize(config.tokenizer_config)
+
+        self.blocks = nn.ModuleList([
+            eqnn.EquivariantTransformerBlock(config.transformer_block_config)
+            for _ in range(config.depth)
+        ])
+
     def apply_transformer_blocks(self, x: List[torch.Tensor]) -> List[torch.Tensor]:
-        """
+        r"""
         Applies a sequence of transformer blocks to the input token sequence.
 
         Args:
@@ -122,7 +148,7 @@ class OcticViTBackbone(nn.Module):
         return x
 
     def forward(self, x: torch.Tensor) -> List[torch.Tensor]:
-        """
+        r"""
         :meth:`tokenization_stem` followed by :meth:`apply_transformer_blocks`.
 
         Args:

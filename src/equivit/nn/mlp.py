@@ -10,6 +10,7 @@ import math
 
 from .init import kaiming_uniform_, complex_kaiming_uniform_
 
+# TODO: this fails with torch.compile when there are complex tensors.
 
 
 class EquivariantMLP(nn.Module):

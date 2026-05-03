@@ -272,6 +272,21 @@ class GroupHomomorphism:
         """
         image = [self(g) for g in self.source]
         return len(set(image)) == len(image)
+    
+    def is_identity(self) -> bool:
+        r"""
+        Check whether the homomorphism is the identity map.
+
+        Returns:
+            True if the homomorphism is the identity map, False otherwise.
+        """
+        if self.source is not self.target:
+            return False
+
+        for g in self.source:
+            if self(g) is not g:
+                return False
+        return True
 
     def validate(self, g: GroupElement, h: GroupElement) -> bool:
         """

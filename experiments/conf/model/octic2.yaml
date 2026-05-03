@@ -9,21 +9,25 @@ backbone:
   _target_: equivit.models.OcticViTBackbone
   config: 
     _target_: equivit.models.OcticViTBackboneConfig
-    in_channels: 3
+
     depth: 12
-    img_size: 256
-    patch_size: 16
-    dims: [32,32,32,32,64]
+    dims: [16,16,16,16,32]
     subgroup: ['D', 4, 0]
+
+    tokenizer_config: 
+      _target_: equivit.models.OcticTokenizeConfig
+      img_size: 256
+      patch_size: 16
+      in_channels: 3
 
     transformer_block_config: 
       _target_: equivit.nn.EquivariantTransformerBlockConfig
       attn_type: irrepwise
       num_heads: [2,2,2,2,4]
-      homogeneous_space_copies: [32,32,32,32, 32,32,32,32]
+      homogeneous_space_copies: [10,10,10,10, 10,10,10,10]
       activation: 'gelu'
 
 head: 
   _target_: equivit.nn.InvariantClassificationHead
-  dim: 192
+  dim: 96
   num_logits: 38

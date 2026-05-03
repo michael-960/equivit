@@ -1,6 +1,6 @@
 defaults:
-  - model: octic
-  - data: patternnet
+  - model: octic_symmbreak
+  - data: patternnet_aug
   - _self_
 
 compile: true
@@ -34,9 +34,15 @@ callbacks:
     save_top_k: 2
     save_last: true
 
-  equivariant_linear_grad:
-    _target_: equivit.lightning.EquivariantLinearGradientNorm
+  grad_norm:
+    _target_: equivit.lightning.LogGradientNorm
     norm_type: 2.0
+    layer_types: ['equivit.nn.EquivariantLinear']
+
+  param_norm:
+    _target_: equivit.lightning.LogParamNorm
+    norm_type: 2.0
+    layer_types: ['equivit.nn.EquivariantLinear']
 
 
 loggers:

@@ -188,6 +188,8 @@ class Fourier(nn.Module):
         return: list of tensors, each of shape (*, Ri, di), where Ri is the multiplicity of the i-th irrep 
         and di is the complex dimension of the i-th irrep.
         """
+        _device = x.device
+
         y = torch.matmul(x, self.matrix)
         chunks = [chunk.contiguous() 
                   for chunk in torch.split(y, self.split_sizes, dim=-1)]
@@ -200,7 +202,7 @@ class Fourier(nn.Module):
             (
                 torch.view_as_complex(chunk.view(*chunk.shape[:-1], m, d, 2)) 
                 if m > 0 
-                else torch.empty((*chunk.shape[:-1], 0, d), dtype=torch.complex64)
+                else torch.empty((*chunk.shape[:-1], 0, d), dtype=torch.complex64, device=_device)
             )
             if is_complex
             else chunk.view(*chunk.shape[:-1], m, d)
@@ -217,14 +219,20 @@ class Fourier(nn.Module):
         - if the i-th irrep is of complex type, then x[i] should be of complex dtype
         - di is the complex dimension of the i-th irrep
         """
-        return torch.matmul(torch.cat(
+
+        # there seems to be a Heisenbug
+        # for i,z in enumerate(x):
+        #     print(f'{z.storage_offset()}')
+            
+
+        u = torch.cat(
                 [# z.view(torch.float32).flatten(-2, -1) 
-                torch.view_as_real(z).flatten(-3, -1) if self.is_complex[i] 
-                else z.flatten(-2, -1)
-                for i,z in enumerate(x)], 
-                dim=-1),
-                self.matrix.t()
-        )
+                    torch.stack([z.real, z.imag], dim=-1).flatten(-3, -1) if self.is_complex[i] 
+                    else z.flatten(-2, -1)
+                    for i,z in enumerate(x)], 
+                dim=-1)
+
+        return torch.matmul(u, self.matrix.t())
 
     def __repr__(self):
         try:

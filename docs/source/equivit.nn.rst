@@ -64,3 +64,10 @@ ViT components
     nn/cls_token
     nn/invariant_classhead
 
+
+Preprocessing layers
+------------------------------
+.. toctree::
+    :maxdepth: 1
+
+    nn/interpolate

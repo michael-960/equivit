@@ -23,14 +23,17 @@ class ClassificationModel(LightningModule):
         loss_fn_cfg,
         optimizer_cfg,
         compile: bool = False,
+        binary: bool = False,
         scheduler_cfg=None,
         extra_cfg=None
     ):
         super().__init__()
 
-        self.model = instantiate(model_cfg)
+        self.model = instantiate(model_cfg, _convert_='all')
         if compile:
             self.model = torch.compile(self.model)
+
+        self.binary = binary
 
         self.loss_fn = instantiate(loss_fn_cfg)
         self.optimizer_factory = instantiate(optimizer_cfg)
@@ -55,7 +58,11 @@ class ClassificationModel(LightningModule):
     def training_step(self, batch, batch_idx):
         x, y = batch
         logits = self.model(x)
-        loss = self.loss_fn(logits, y)
+
+        if self.binary:
+            loss = self.loss_fn(logits.squeeze(-1), y.to(torch.float32))
+        else:
+            loss = self.loss_fn(logits, y)
 
         self.epoch_batch_count += 1
         self.epoch_total_loss += loss.detach().item()
@@ -71,7 +78,11 @@ class ClassificationModel(LightningModule):
     def validation_step(self, batch, batch_idx):
         x, y = batch
         logits = self.model(x)
-        loss = self.loss_fn(logits, y)
+        if self.binary:
+            loss = self.loss_fn(logits.squeeze(-1), y.to(torch.float32))
+        else:
+            loss = self.loss_fn(logits, y)
+
         self.log('val_loss', loss, prog_bar=True)
         return loss
 

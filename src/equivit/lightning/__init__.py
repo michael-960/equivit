@@ -9,4 +9,6 @@ TODO: segmentation
 
 from .classification import *
 
-from .log_gradient import EquivariantLinearGradientNorm
+from .log_gradient import LogGradientNorm
+
+from .log_weight import LogParamNorm

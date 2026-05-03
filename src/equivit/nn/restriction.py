@@ -70,7 +70,6 @@ class SymmetryRestriction(nn.Module):
         self.num_G_irreps = len(G_irreps)
 
 
-
         for i, irrep in enumerate(G_irreps.values()):
             rep = irrep.pullback(homomorphism)
             # decompose into irreps of H

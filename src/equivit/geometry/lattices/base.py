@@ -1,10 +1,12 @@
 import torch
-from typing import Type, Union, ClassVar, Any, Annotated, overload
+from typing import Type, Union, Tuple, Any, overload
 from ..groups import Group, decompose_set_action, TRIVIAL_GROUP, GroupAction, GroupElement
 import numpy as np
 
 import matplotlib.pyplot as plt
 from matplotlib.collections import PolyCollection
+
+import torch.nn.functional as F
 
 
 
@@ -127,12 +129,14 @@ class LatticeImageInterpolator:
     def __init__(self, 
         lattice: Lattice, 
         img_size: Union[int,tuple],
-        offset=[0.,0.],
+        scale: float = 1.0,
+        offset: Tuple[int,int]=(0.,0.),
     ):
         if type(img_size) not in [tuple, list]:
             img_size = (img_size, img_size)
 
         self.lattice = lattice
+        self.scale = scale
         self.offset = np.array(offset)
 
         if (not isinstance(img_size, list)) and (not isinstance(img_size, tuple)): 
@@ -142,23 +146,24 @@ class LatticeImageInterpolator:
         self.setup_interpolation()
 
     def setup_interpolation(self):
-        points = self.lattice.points + self.offset
-
-        I = np.array(points[:,0], dtype=np.int64)
-        J = np.array(points[:,1], dtype=np.int64)
-
+        points = self.lattice.points * self.scale + self.offset
         H, W = self.img_size
 
-        self.I0 = np.where(I >= H, H-1, I)
-        self.I1 = np.where(I+1 >= H, H-1, I+1)
+        x_coords = np.clip(points[:,0]+1, 0., H+1) # plus one because we zero-pad the input image by one pixel on each side
+        y_coords = np.clip(points[:,1]+1, 0., W+1)
 
-        self.J0 = np.where(J >= W, W-1, J)
-        self.J1 = np.where(J+1 >= W, W-1, J+1)
+        I = np.array(x_coords, dtype=np.int64)
+        J = np.array(y_coords, dtype=np.int64)
 
-        # TODO: also clip at 0?
+        self.I0 = np.clip(I, 0, H+1)
+        self.I1 = np.clip(I+1, 0, H+1)
 
-        self.interp_alpha = torch.tensor(points[:,0] - self.I0)
-        self.interp_beta = torch.tensor(points[:,1] - self.J0)
+        self.J0 = np.clip(J, 0, W+1)
+        self.J1 = np.clip(J+1, 0, W+1)
+
+
+        self.interp_alpha = torch.tensor(x_coords - self.I0)
+        self.interp_beta = torch.tensor(y_coords - self.J0)
 
     def crop_and_interpolate(self, img: torch.Tensor):    
         """
@@ -167,6 +172,8 @@ class LatticeImageInterpolator:
 
         img: (*, C, N, N)
         """
+        img = F.pad(img, (1,1,1,1), mode='constant', value=0)
+
         shape = img.shape
         new_img = img.new_zeros((*shape[:-2], self.lattice.size))
 

@@ -10,9 +10,9 @@ from .. import nn as eqnn
 # from .init import init_weights
 
 @dataclass
-class ViTBackboneConfig:
+class TokenizerConfig:
     r"""
-    Config dataclass for the :class:`OcticViTBackbone` model.
+    Config dataclass for the :class:`Tokenizer` module.
     """
     img_size: int 
     """Size of input image (assumed to be square)."""
@@ -20,30 +20,34 @@ class ViTBackboneConfig:
     patch_size: int 
     """Number of pixels on each side of one patch (assumed to be square)."""
 
+    in_channels: int
+    """Number of channels in the input image."""
+
+    dim: int = None
+    """Number of channels for each irrep."""
+
+@dataclass
+class ViTBackboneConfig:
+    r"""
+    Config dataclass for the :class:`OcticViTBackbone` model.
+    """
     dim: int
     """Number of channels for each irrep."""
 
-    transformer_block_config: eqnn.vanilla.TransformerBlockConfig
+    tokenizer_config: TokenizerConfig
 
-    in_channels: int = 3 # input channel
-    """Number of channels in the input image."""
+    transformer_block_config: eqnn.vanilla.TransformerBlockConfig
 
     depth: int = 12
     """Number of transformer blocks."""
 
     def __post_init__(self):
         self.transformer_block_config.dim = self.dim
+        self.tokenizer_config.dim = self.dim
 
 
-
-class ViTBackbone(nn.Module):
-    """
-    Reference implementation of ViT backbone, which is used as a reference baseline for equivariant models.
-    """
-    def __init__(
-        self, 
-        config: ViTBackboneConfig
-    ):
+class Tokenizer(nn.Module):
+    def __init__(self, config: TokenizerConfig):
         super().__init__()
 
         assert config.img_size % config.patch_size == 0, f'Image size {config.img_size} must be divisible by patch size {config.patch_size}'
@@ -52,16 +56,7 @@ class ViTBackbone(nn.Module):
         self.pos_enc = eqnn.vanilla.PositionEncoding(spatial_size=config.img_size//config.patch_size, dim=config.dim)
         self.add_cls_token = eqnn.vanilla.AppendClassToken(dim=config.dim)
 
-        # dpr = [config.drop_path_rate for i in range(config.depth)]
-
-        self.blocks = nn.ModuleList([
-             eqnn.vanilla.TransformerBlock(config.transformer_block_config)
-             for i in range(config.depth)
-        ])
-
-        # self.apply(init_weights)
-
-    def tokenization_stem(self, x: torch.Tensor):
+    def forward(self, x: torch.Tensor):
         r"""
         Args:
             x: Input image tensor of shape :math:`(B, C, H, W)`
@@ -73,6 +68,21 @@ class ViTBackbone(nn.Module):
         x = self.pos_enc(x)
         x = self.add_cls_token(x)
         return x
+
+
+class ViTBackbone(nn.Module):
+    """
+    Reference implementation of ViT backbone, which is used as a reference baseline for equivariant models.
+    """
+    def __init__(self, config: ViTBackboneConfig):
+        super().__init__()
+
+        self.tokenization_stem = Tokenizer(config.tokenizer_config)
+
+        self.blocks = nn.ModuleList([
+             eqnn.vanilla.TransformerBlock(config.transformer_block_config)
+             for _ in range(config.depth)
+        ])
 
     def apply_transformer_blocks(self, x):
         for _, blk in enumerate(self.blocks):
