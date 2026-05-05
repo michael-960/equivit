@@ -1,6 +1,6 @@
 defaults:
-  - model: octic_symmbreak
   - data: patternnet_aug
+  - model: octic/d4/a/tiny
   - _self_
 
 compile: true

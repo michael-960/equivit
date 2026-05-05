@@ -15,21 +15,23 @@ backbone:
   _target_: equivit.models.HoneyViTBackbone
   config: 
     _target_: equivit.models.HoneyViTBackboneConfig
-    in_channels: 3
     depth: 12
-    N1: 8
-    N2: 8
     dims: [16,16,16,16,32,32]
     subgroup: ['D', 6, 0]
 
+    tokenizer_config:
+      _target_: equivit.models.HoneyTokenizeConfig
+      N1: 8
+      N2: 8
+
     transformer_block_config: 
       _target_: equivit.nn.EquivariantTransformerBlockConfig
-      attn_type: irrepwise
-      num_heads: [2, 2, 2, 2, 4, 4]
-      homogeneous_space_copies: [32, 0, 0, 0, 0,  0, 0, 0, 0, 0]
+      attn_type: coupled
+      num_heads: 3
+      homogeneous_space_copies: [64, 0, 0, 0, 0,  0, 0, 0, 0, 0]
       activation: 'gelu'
 
 head: 
   _target_: equivit.nn.InvariantClassificationHead
-  dim: 192
-  num_logits: 38
+  dim: 128
+  num_logits: "${oc.select:data.num_logits,10}"

@@ -20,42 +20,53 @@ backbone:
     _target_: equivit.nn.SymmetryBreakingTransformer
     config:
       _target_: equivit.nn.SymmetryBreakingTransformerConfig
-      attn_type: 'irrepwise'
-      activation: 'gelu'
       group:
         _target_: equivit.DihedralGroup
         n: 4
+      subgroups:
+        - ['D', 4, 0] # D4
+        - ['C', 4] # C4
+        - [2] # C2
+        - [1] # trivial
+
+      depths: [3,3,3,3]
 
       transformer_configs:
-        - _target_: equivit.nn.EquivariantTransformerConfig
-          subgroup: ['D', 4, 0] # D4
-          depth: 3
+        # D4
+        - _target_: equivit.nn.EquivariantTransformerBlockConfig
           dims: [16,16,16,16,32] # 128
           num_heads: [2,2,2,2,4]
           homogeneous_space_copies: [32, 0, 0, 0,  0, 0, 0, 0] # 256
+          attn_type: 'irrepwise'
+          activation: 'gelu'
 
-        - _target_: equivit.nn.EquivariantTransformerConfig
-          subgroup: ['C', 4] # C4
-          depth: 3
+        # C4
+        - _target_: equivit.nn.EquivariantTransformerBlockConfig
           dims: [32,32,32]
           num_heads: [4,4,4]
           homogeneous_space_copies: [64, 0, 0]
+          attn_type: 'irrepwise'
+          activation: 'gelu'
 
-        - _target_: equivit.nn.EquivariantTransformerConfig
-          subgroup: [2] # C2
-          depth: 3
+        # C2
+        - _target_: equivit.nn.EquivariantTransformerBlockConfig
           dims: [64,64]
-          num_heads: [8,4]
+          num_heads: [8,8]
           homogeneous_space_copies: [128, 0]
+          attn_type: 'irrepwise'
+          activation: 'gelu'
 
-        - _target_: equivit.nn.EquivariantTransformerConfig
-          subgroup: [1] # trivial
-          depth: 3
+        # trivial
+        - _target_: equivit.nn.EquivariantTransformerBlockConfig
           dims: [128]
           num_heads: [16]
           homogeneous_space_copies: [256]
+          attn_type: 'irrepwise'
+          activation: 'gelu'
+
 
 head: 
   _target_: equivit.nn.InvariantClassificationHead
   dim: 128
-  num_logits: 38
+  num_logits: "${oc.select:data.num_logits,10}"
+

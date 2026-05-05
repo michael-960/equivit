@@ -1,7 +1,7 @@
 import torch.nn as nn
 import torch
 import torch.nn.functional as F
-from typing import Tuple, List, Union, Literal, Optional
+from typing import Tuple, List, Union, Literal, Optional, cast
 
 from dataclasses import dataclass
 
@@ -12,15 +12,20 @@ from .drop import ListDropout, ListDropPath
 from .mlp import EquivariantMLP
 
 
+from .._core import MISSING
+
+
 @dataclass
 class EquivariantTransformerBlockConfig:
-    group: Group = None
-    dims: List[int] = None
-    num_heads: Union[int, List[int]] = None
+    group: Group = MISSING
 
-    homogeneous_space_copies: List[int] = None # for nonlinearity in MLP
+    dims: List[int] = MISSING
 
-    attn_type: Literal['irrepwise', 'coupled'] = 'irrepwise' # only support 'irrepwise' for now
+    num_heads: Union[int, List[int]] = MISSING
+
+    homogeneous_space_copies: List[int] = MISSING
+
+    attn_type: Literal['irrepwise', 'coupled'] = 'irrepwise'
     trivial_rep_attn_bias: bool = True
     attn_drop: float = 0.
     trivial_rep_proj_bias: bool = True
@@ -37,7 +42,7 @@ class EquivariantTransformerBlockConfig:
     drop_path: float=0.
 
     def validate(self):
-        assert None not in [self.group, self.dims, self.num_heads, self.homogeneous_space_copies]
+        assert MISSING not in [self.group, self.dims, self.num_heads, self.homogeneous_space_copies]
 
 
 
@@ -59,7 +64,6 @@ class EquivariantTransformerBlock(nn.Module):
     """
     def __init__(self, config: EquivariantTransformerBlockConfig):
         super().__init__()
-
         config.validate()
 
         self.dims = config.dims

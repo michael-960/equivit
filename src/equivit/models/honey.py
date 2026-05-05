@@ -5,38 +5,89 @@ import torch.nn.functional as F
 
 from dataclasses import dataclass
 
-from ..geometry import HexPatches
+from ..geometry import HexPatches, D6
 
 from .. import nn as eqnn
 
+from .._core import MISSING, resolve_values
+
+@dataclass
+class HoneyTokenizeConfig:
+    r"""
+    Config dataclass for the :class:`HoneyTokenize` module.
+    """
+    N1: int
+    r"""Number of hexagonal patches along one side of the hexagon *minus one* """
+
+    N2: int 
+    r"""Number of pixels along one side of the hexagonal patch *minus one* """
+
+    in_channels: int
+    """Number of channels in the input image."""
+
+    dims: List[int] = MISSING
+    """Number of channels for each irrep."""
+
+    subgroup: tuple = MISSING
+    """Subgroup for the equivariant operations. See :meth:`equivit.geometry.DihedralGroup.subgroup` for details."""
+
+    def resolve_defaults(self):
+        if self.subgroup is MISSING:
+            self.subgroup = ('D', 6, 0)
 
 
 @dataclass
 class HoneyViTBackboneConfig:
-    N1: int
-    N2: int
-
+    r"""
+    Config dataclass for the :class:`HoneyViTBackbone` model.
+    """
     dims: List[int]
+
+    tokenizer_config: HoneyTokenizeConfig
 
     transformer_block_config: eqnn.EquivariantTransformerBlockConfig
 
-    subgroup: tuple = ('D', 6, 0)
+    depth: int = MISSING
+    """Number of transformer blocks."""
 
-    in_channels: int = 3 # input channel
-
-    depth: int = 12
+    subgroup: tuple = MISSING
+    """Subgroup for the equivariant operations. See :meth:`equivit.geometry.DihedralGroup.subgroup` for details."""
 
     def __post_init__(self):
-        self.transformer_block_config.dims = self.dims
+        resolve_values(self, self.tokenizer_config, keys=('dims', 'subgroup'))
+        resolve_values(self, self.transformer_block_config, keys=('dims',))
+
+        _group = D6.subgroup(*self.subgroup).source
+        if self.transformer_block_config.group is MISSING:
+            self.transformer_block_config.group = _group
+        else:
+            assert self.transformer_block_config.group is _group, f"Group in transformer block config ({self.transformer_block_config.group}) does not match subgroup specified in backbone config ({_group})"
+
+    def resolve_defaults(self):
+        if self.subgroup is MISSING:
+            self.subgroup = ('D', 6, 0)
 
 
-
-class HoneyViTBackbone(nn.Module):
+class HoneyTokenize(nn.Module):
     r"""
-    :math:`D_6`-equivariant ViT backbone for images on the honeycomb lattice.
+    Tokenize an image defined on a collection of hexagonal patches (see :class:`HexPatches`).
+
+    The tokenization process consists of four steps:
+
+    1. Perform an indexing on the input image of shape :math:`(B, C, L)` to
+       :math:`(B, N_1, N_2)`, where :math:`N_1` is the number of hexagonal patches
+       along one side of the hexagon *minus one*, and :math:`N_2` is the number of
+       pixels along one side of the hexagonal patch *minus one*.
+
+    2. Apply :class:`EquivariantPatchEmbed` to the indexed tensor.
+
+    3. Apply :class:`EquivariantPositionalEncoding`.
+
+    4. Append a class token using :class:`AppendClassToken`.
     """
-    def __init__(self, config: HoneyViTBackboneConfig):
+    def __init__(self, config: HoneyTokenizeConfig):
         super().__init__()
+        config.resolve_defaults()
 
         self.N1 = config.N1
         self.N2 = config.N2
@@ -55,15 +106,7 @@ class HoneyViTBackbone(nn.Module):
                         config.dims)
         self.add_cls_token = eqnn.AppendClassToken(config.dims[0])
 
-        group = interpatch_action.group.subgroup(*config.subgroup).source
-        config.transformer_block_config.group = group
-
-        self.blocks = nn.ModuleList([
-            eqnn.EquivariantTransformerBlock(config.transformer_block_config)
-            for _ in range(config.depth)
-        ])
-
-    def tokenization_stem(self, x: torch.Tensor) -> List[torch.Tensor]:
+    def forward(self, x: torch.Tensor) -> List[torch.Tensor]:
         """
         Applies patch embedding, positional encoding, and appends a class token to the input image tensor.
 
@@ -76,6 +119,23 @@ class HoneyViTBackbone(nn.Module):
         x = self.patch_embed(x)
         x = self.pos_enc(x)
         return self.add_cls_token(x)
+
+
+
+class HoneyViTBackbone(nn.Module):
+    r"""
+    :math:`D_6`-equivariant ViT backbone for images on the honeycomb lattice.
+    """
+    def __init__(self, config: HoneyViTBackboneConfig):
+        super().__init__()
+        config.resolve_defaults()
+
+        self.tokenization_stem = HoneyTokenize(config.tokenizer_config)
+
+        self.blocks = nn.ModuleList([
+            eqnn.EquivariantTransformerBlock(config.transformer_block_config)
+            for _ in range(config.depth)
+        ])
 
     def apply_transformer_blocks(self, x: List[torch.Tensor]) -> List[torch.Tensor]:
         """
@@ -95,8 +155,3 @@ class HoneyViTBackbone(nn.Module):
         xs = self.tokenization_stem(x)
         xs = self.apply_transformer_blocks(xs)
         return xs
-
-
-
-
-

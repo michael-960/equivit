@@ -15,10 +15,11 @@ backbone:
 
     transformer_block_config: 
       _target_: equivit.nn.vanilla.TransformerBlockConfig
-      num_heads: 8
-      dim_mlp: 384
+      num_heads: 3
+      dim_mlp: 768
+      activation: 'gelu'
 
 head: 
   _target_: equivit.nn.vanilla.ClassificationHead
   dim: 192
-  num_logits: 38
+  num_logits: "${oc.select:data.num_logits,10}"

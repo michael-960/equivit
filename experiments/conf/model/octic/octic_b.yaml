@@ -24,10 +24,10 @@ backbone:
       _target_: equivit.nn.EquivariantTransformerBlockConfig
       attn_type: irrepwise
       num_heads: [2,2,2,2,4]
-      homogeneous_space_copies: [32, 0, 0, 0,  0, 0, 0, 0]
+      homogeneous_space_copies: [10,10,10,10, 10,10,10,10]
       activation: 'gelu'
 
 head: 
   _target_: equivit.nn.InvariantClassificationHead
   dim: 96
-  num_logits: 38
+  num_logits: "${oc.select:data.num_logits,10}"

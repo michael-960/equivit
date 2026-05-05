@@ -31,3 +31,4 @@ val_loader:
   num_workers: 4
   shuffle: false
 
+num_logits: 38

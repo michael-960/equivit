@@ -17,7 +17,6 @@ class HexViTBackboneConfig:
     N_honey: int    
     N_triangle: int
 
-
     dims: List[int]
 
     transformer_block_config: eqnn.EquivariantTransformerBlockConfig

@@ -1,0 +1,25 @@
+_target_: equivit.models.build_named_sequential
+
+backbone: 
+  _target_: equivit.models.ViTBackbone
+  config: 
+    _target_: equivit.models.ViTBackboneConfig
+    dim: 384
+    depth: 12
+
+    tokenizer_config: 
+      _target_: equivit.models.TokenizerConfig
+      img_size: 256
+      patch_size: 16
+      in_channels: 3
+
+    transformer_block_config: 
+      _target_: equivit.nn.vanilla.TransformerBlockConfig
+      num_heads: 6
+      dim_mlp: 1536
+      activation: 'gelu'
+
+head: 
+  _target_: equivit.nn.vanilla.ClassificationHead
+  dim: 384
+  num_logits: "${oc.select:data.num_logits,10}"

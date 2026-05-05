@@ -11,6 +11,8 @@ from ..geometry import Square, D4
 
 from .. import nn as eqnn
 
+from .._core import MISSING, resolve_values
+
 
 @dataclass
 class OcticTokenizeConfig:
@@ -26,11 +28,16 @@ class OcticTokenizeConfig:
     in_channels: int
     """Number of channels in the input image."""
 
-    dims: List[int] = None
+    dims: List[int] = MISSING
     """Number of channels for each irrep."""
 
-    subgroup: tuple = ('D', 4, 0)
+    subgroup: tuple = MISSING
     """Subgroup for the equivariant operations. See :meth:`equivit.geometry.DihedralGroup.subgroup` for details."""
+
+
+    def resolve_defaults(self):
+        if self.subgroup is MISSING:
+            self.subgroup = ('D', 4, 0)
 
 
 @dataclass
@@ -44,31 +51,43 @@ class OcticViTBackboneConfig:
 
     transformer_block_config: eqnn.EquivariantTransformerBlockConfig
 
-    depth: int = 12
+    depth: int = MISSING
     """Number of transformer blocks."""
 
-    subgroup: tuple = ('D', 4, 0)
+    subgroup: tuple = MISSING
     """Subgroup for the equivariant operations. See :meth:`equivit.geometry.DihedralGroup.subgroup` for details."""
 
     def __post_init__(self):
-        self.tokenizer_config.dims = self.dims
-        self.tokenizer_config.subgroup = self.subgroup
 
-        self.transformer_block_config.dims = self.dims
-        self.transformer_block_config.group = D4.subgroup(*self.subgroup).source
+        resolve_values(self, self.tokenizer_config, keys=('dims', 'subgroup'))
+
+        resolve_values(self, self.transformer_block_config, keys=('dims',))
+
+        _group = D4.subgroup(*self.subgroup).source
+        if self.transformer_block_config.group is MISSING:
+            self.transformer_block_config.group = _group
+        else:
+            assert self.transformer_block_config.group is _group, f"Group in transformer block config ({self.transformer_block_config.group}) does not match subgroup specified in backbone config ({_group})"
+
+    def resolve_defaults(self):
+        if self.subgroup is MISSING:
+            self.subgroup = ('D', 4, 0)
 
 
 class OcticTokenize(nn.Module):
     r"""
-    Tokenize a square image.
+    Tokenize a square image. This is implemented as a sequence of four steps:
 
-    rearrange input image of shape :math:`(B, C, N^2)` to :math:`(B, (N/P)^2, P^2,C)
-    -> :class:`EquivariantPatchEmbed` 
-    -> :class:`EquivariantPositionalEncoding`
-    -> :class:`AppendClassToken`
+
+    1. Rearrange input image of shape :math:`(B, C, N^2)` to :math:`(B, (N/P)^2, P^2,C)`.
+    2. Apply :class:`EquivariantPatchEmbed`.
+    3. Apply :class:`EquivariantPositionalEncoding`.
+    4. Append a class token using :class:`AppendClassToken`.
     """
     def __init__(self, config: OcticTokenizeConfig):
         super().__init__()
+        config.resolve_defaults()
+
         assert config.img_size % config.patch_size == 0, f'Image size {config.img_size} must be divisible by patch size {config.patch_size}'
         self.img_size = config.img_size
         self.patch_size = config.patch_size

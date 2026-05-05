@@ -1,0 +1,78 @@
+_target_: equivit.models.build_named_sequential
+
+preprocess:
+  _target_: equivit.nn.CropAndInterpolate
+  img_size: [256, 256]
+  offset: [127.5, 127.5]
+  scale: 1.4
+  lattice:
+    _target_: equivit.geometry.HexPatches
+    N1: 8
+    N2: 8
+
+backbone: 
+  _target_: equivit.models.build_named_sequential
+  tokenization_stem:
+    _target_: equivit.models.HoneyTokenize
+    config:
+      _target_: equivit.models.HoneyTokenizeConfig
+      N1: 8
+      N2: 8
+      in_channels: 3
+      dims: [16,16,16,16,32,32]
+
+  transformer:
+    _target_: equivit.nn.SymmetryBreakingTransformer
+    config:
+      _target_: equivit.nn.SymmetryBreakingTransformerConfig
+      group:
+        _target_: equivit.DihedralGroup
+        n: 6
+      subgroups:
+        - ['D', 6, 0] # D6
+        - ['C', 6] # C6
+        - [3] # C3
+        - [1] # trivial
+
+      depths: [3,3,3,3]
+
+      transformer_configs:
+        # D6
+        - _target_: equivit.nn.EquivariantTransformerBlockConfig
+          dims: [16,16,16,16,32,32] # 192
+          num_heads: [2,2,2,2,4,4]
+          homogeneous_space_copies: [32, 0, 0, 0, 0,  0, 0, 0, 0, 0] # 384
+          attn_type: 'irrepwise'
+          activation: 'gelu'
+
+        # C6
+        - _target_: equivit.nn.EquivariantTransformerBlockConfig
+          dims: [32,32,32,32]
+          num_heads: [4,4,4,4]
+          homogeneous_space_copies: [64, 0, 0, 0]
+          attn_type: 'irrepwise'
+          activation: 'gelu'
+
+        # C3
+        - _target_: equivit.nn.EquivariantTransformerBlockConfig
+          dims: [64,64]
+          num_heads: [8,8]
+          homogeneous_space_copies: [128, 0]
+          attn_type: 'irrepwise'
+          activation: 'gelu'
+
+        # trivial
+        - _target_: equivit.nn.EquivariantTransformerBlockConfig
+          dims: [192]
+          num_heads: [24]
+          homogeneous_space_copies: [384]
+          attn_type: 'irrepwise'
+          activation: 'gelu'
+
+
+head: 
+  _target_: equivit.nn.InvariantClassificationHead
+  dim: 192
+  num_logits: "${oc.select:data.num_logits,10}"
+
+

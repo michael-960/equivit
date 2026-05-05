@@ -1,7 +1,9 @@
 import torch
 import torch.nn as nn
 from .linear import Linear
-from typing import Tuple
+from typing import Tuple, Optional
+
+from ..utils import get_activation_function
 
 
 class MLP(nn.Module):
@@ -13,12 +15,15 @@ class MLP(nn.Module):
         dim_out: int,
         bias: bool = True,
         drop_probs: Tuple[float] = (0.,0.),
-        norm_layer = None
+        norm_layer = None,
+        activation: str = 'relu',
+        activation_kw: Optional[dict] = None
     ):
         super().__init__()
         self.fc1 = Linear(dim_in, dim_hidden, bias=bias)
 
-        self.act = nn.GELU()
+        # self.act = nn.GELU()
+        self.act = get_activation_function(activation, **(activation_kw or {}))
 
         self.drop1 = nn.Dropout(drop_probs[0])
         self.norm = nn.Identity()

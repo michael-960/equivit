@@ -1,7 +1,7 @@
 import torch.nn as nn
 import torch
 import torch.nn.functional as F
-from typing import Tuple, Callable
+from typing import Optional, Tuple, Callable
 
 from .norm import LayerNorm, LayerScale
 from .attn import Attention
@@ -10,13 +10,15 @@ from .mlp import MLP
 
 from dataclasses import dataclass
 
+from ..._core import MISSING
+
 
 @dataclass
 class TransformerBlockConfig:
-    dim: int = None
-    num_heads: int = None
+    dim: int = MISSING
+    num_heads: int = MISSING
 
-    dim_mlp: int = None
+    dim_mlp: int = MISSING
 
     attn_bias: bool = True
     attn_drop: float = 0.
@@ -26,9 +28,12 @@ class TransformerBlockConfig:
     mlp_bias: bool = True
     mlp_drop_probs: Tuple[float, float] = (0.,0.)
 
-    ls_init_values=None
+    activation: str = 'relu'
+    activation_kw: dict = None
+
+    ls_init_values: Optional[float] = None
     # norm_layer: Callable = None, 
-    drop_path: float=0.
+    drop_path: float = 0.
 
     def validate(self):
         assert None not in [self.dim, self.num_heads, self.dim_mlp]
@@ -68,7 +73,9 @@ class TransformerBlock(nn.Module):
         self.mlp = MLP(
             dim_in=config.dim, dim_hidden=config.dim_mlp, dim_out=config.dim,
             bias=config.mlp_bias,
-            drop_probs=config.mlp_drop_probs
+            drop_probs=config.mlp_drop_probs,
+            activation=config.activation,
+            activation_kw=config.activation_kw
         )
 
         if config.ls_init_values is not None:

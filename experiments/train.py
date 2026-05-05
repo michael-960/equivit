@@ -8,6 +8,20 @@ from equivit.lightning import ClassificationModel, ClassificationDataModule
 import torch
 
 
+class EnvironmentLoggerCallback(L.Callback):
+    def on_train_start(self, trainer, pl_module):
+        if trainer.logger:
+            env_info = {
+                "env/pytorch_version": torch.__version__,
+                "env/lightning_version": L.__version__,
+                "env/cuda_available": torch.cuda.is_available(),
+                "env/cuda_version": torch.version.cuda if torch.cuda.is_available() else "N/A",
+                "env/equivit_version": equivit.__version__,
+            }
+            # Log the info using the trainer's logger
+            trainer.logger.log_hyperparams(env_info)
+
+
 @hydra.main(version_base=None, config_path="conf", config_name="config")
 def main(cfg: DictConfig):
 
@@ -24,7 +38,7 @@ def main(cfg: DictConfig):
                 ) 
 
 
-    callbacks = [instantiate(cb_cfg) for cb_cfg in cfg.callbacks.values()]
+    callbacks = [instantiate(cb_cfg) for cb_cfg in cfg.callbacks.values()] + [EnvironmentLoggerCallback()]
     loggers = [instantiate(logger_cfg) for logger_cfg in cfg.loggers.values()]
 
     trainer: L.Trainer = instantiate(cfg.trainer, callbacks=callbacks, logger=loggers)

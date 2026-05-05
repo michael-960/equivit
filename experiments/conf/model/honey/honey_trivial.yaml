@@ -1,24 +1,29 @@
 _target_: equivit.models.build_named_sequential
 
 preprocess:
-  _target_: torch.nn.Flatten
-  start_dim: -2
-  end_dim: -1
+  _target_: equivit.nn.CropAndInterpolate
+  img_size: [256, 256]
+  offset: [127.5, 127.5]
+  scale: 1.4
+  lattice:
+    _target_: equivit.geometry.HexPatches
+    N1: 8
+    N2: 8
+
 
 backbone: 
-  _target_: equivit.models.OcticViTBackbone
+  _target_: equivit.models.HoneyViTBackbone
   config: 
-    _target_: equivit.models.OcticViTBackboneConfig
-
+    _target_: equivit.models.HoneyViTBackboneConfig
     depth: 12
     dims: [192]
     subgroup: ['C', 1]
 
-    tokenizer_config: 
-      _target_: equivit.models.OcticTokenizeConfig
-      img_size: 256
-      patch_size: 16
+    tokenizer_config:
+      _target_: equivit.models.HoneyTokenizeConfig
       in_channels: 3
+      N1: 8
+      N2: 8
 
     transformer_block_config: 
       _target_: equivit.nn.EquivariantTransformerBlockConfig
@@ -30,4 +35,4 @@ backbone:
 head: 
   _target_: equivit.nn.InvariantClassificationHead
   dim: 192
-  num_logits: 38
+  num_logits: "${oc.select:data.num_logits,10}"

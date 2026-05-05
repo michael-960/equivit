@@ -4,6 +4,7 @@ import torch.nn as nn
 import torch
 import torch.nn.functional as F
 
+from .._core import MISSING, resolve_values
 
 from .. import nn as eqnn
 
@@ -23,7 +24,7 @@ class TokenizerConfig:
     in_channels: int
     """Number of channels in the input image."""
 
-    dim: int = None
+    dim: int = MISSING
     """Number of channels for each irrep."""
 
 @dataclass
@@ -42,8 +43,8 @@ class ViTBackboneConfig:
     """Number of transformer blocks."""
 
     def __post_init__(self):
-        self.transformer_block_config.dim = self.dim
-        self.tokenizer_config.dim = self.dim
+        resolve_values(self, self.tokenizer_config, keys=('dim',))
+        resolve_values(self, self.transformer_block_config, keys=('dim',))
 
 
 class Tokenizer(nn.Module):

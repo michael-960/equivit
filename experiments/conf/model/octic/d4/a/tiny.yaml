@@ -11,7 +11,7 @@ backbone:
     _target_: equivit.models.OcticViTBackboneConfig
 
     depth: 12
-    dims: [16,16,16,16,32]
+    dims: [24,24,24,24,48] # 192
     subgroup: ['D', 4, 0]
 
     tokenizer_config: 
@@ -22,12 +22,12 @@ backbone:
 
     transformer_block_config: 
       _target_: equivit.nn.EquivariantTransformerBlockConfig
-      attn_type: irrepwise
-      num_heads: [2,2,2,2,4]
-      homogeneous_space_copies: [10,10,10,10, 10,10,10,10]
+      attn_type: coupled
+      num_heads: 3
+      homogeneous_space_copies: [96, 0, 0, 0,  0, 0, 0, 0]
       activation: 'gelu'
 
 head: 
   _target_: equivit.nn.InvariantClassificationHead
-  dim: 96
-  num_logits: 38
+  dim: 144
+  num_logits: "${oc.select:data.num_logits,10}"

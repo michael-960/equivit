@@ -64,6 +64,8 @@ ViT components
     nn/cls_token
     nn/invariant_classhead
 
+    nn/symm_break_transformer
+
 
 Preprocessing layers
 ------------------------------

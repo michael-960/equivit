@@ -6,6 +6,7 @@ from typing import List, Optional, Callable
 from ..geometry import GroupAction, decompose_set_action, Group, IrrepType
 from .utils import assert_all_not_quaternionic, get_activation_function
 
+from . import functional as EF
 
 
 class EquivariantNonlinear(nn.Module):
@@ -200,7 +201,8 @@ class Fourier(nn.Module):
 
         return [
             (
-                torch.view_as_complex(chunk.view(*chunk.shape[:-1], m, d, 2)) 
+                # torch.view_as_complex(chunk.view(*chunk.shape[:-1], m, d, 2)) 
+                EF.to_complex(chunk.view(*chunk.shape[:-1], m, d, 2)) 
                 if m > 0 
                 else torch.empty((*chunk.shape[:-1], 0, d), dtype=torch.complex64, device=_device)
             )
@@ -227,7 +229,7 @@ class Fourier(nn.Module):
 
         u = torch.cat(
                 [# z.view(torch.float32).flatten(-2, -1) 
-                    torch.stack([z.real, z.imag], dim=-1).flatten(-3, -1) if self.is_complex[i] 
+                    EF.to_real(z).flatten(-3, -1) if self.is_complex[i] 
                     else z.flatten(-2, -1)
                     for i,z in enumerate(x)], 
                 dim=-1)

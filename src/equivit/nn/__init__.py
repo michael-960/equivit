@@ -25,7 +25,7 @@ from .utils import assert_all_not_quaternionic, act_on_tensors, random_irrep_ten
 
 from .interpolate import CropAndInterpolate
 
-from .symm_break_transformer import SymmetryBreakingTransformerConfig, SymmetryBreakingTransformer, EquivariantTransformerConfig
+from .symm_break_transformer import SymmetryBreakingTransformerConfig, SymmetryBreakingTransformer
 
 
 from . import init

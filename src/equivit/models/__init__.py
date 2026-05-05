@@ -1,5 +1,5 @@
 from .octic import OcticViTBackbone, OcticViTBackboneConfig, OcticTokenize, OcticTokenizeConfig
-from .honey import HoneyViTBackbone, HoneyViTBackboneConfig
+from .honey import HoneyViTBackbone, HoneyViTBackboneConfig, HoneyTokenize, HoneyTokenizeConfig
 from .hex import HexViTBackbone, HexViTBackboneConfig
 
 

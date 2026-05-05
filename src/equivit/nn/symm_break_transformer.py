@@ -8,98 +8,87 @@ from .transformer_block import EquivariantTransformerBlock, EquivariantTransform
 
 from dataclasses import dataclass
 
-
-def first_not_none(*args, allow_none=False):
-    """
-    Returns the first argument that is not None. If all arguments are None,
-    raises a ValueError (unless allow_none is True, in which case returns None).
-    """
-    for arg in args:
-        if arg is not None:
-            return arg
-    if allow_none:
-        return None
-    raise ValueError("All arguments are None")
+from .._core import MISSING, resolve_values
 
 
 @dataclass
 class SymmetryBreakingTransformerConfig:
+    r"""
+    Configuration for :class:`SymmetryBreakingTransformer`.
+    """
 
     group: Group
+    """The initial group :math:`G`.  The first symmetry restriction will be from this group to the first subgroup in the sequence."""
 
-    transformer_configs: List['EquivariantTransformerConfig']
+    subgroups: List[tuple]
+    """List of subgroups to break symmetry to. Each subgroup is specified as a tuple of arguments 
+        to be passed to the :meth:`Group.subgroup` method.
+        The subgroup arguments should be specified with respect to the previous group in the sequence.
+    """    
 
-    attn_type: Optional[Literal['irrepwise', 'coupled']] = None 
-    trivial_rep_attn_bias: Optional[bool] = True
-    attn_drop: Optional[float] = 0.
-    trivial_rep_proj_bias: Optional[bool] = True
-    proj_drop: Optional[float] = 0.
+    depths: List[int]
+    """Number of equivariant transformer blocks to apply at each stage (after
+    each symmetry restriction). Should have the same length as
+    :attr:`subgroups`."""
 
-    activation: Optional[str] = 'relu'
-    activation_kw: Optional[dict] = None
-
-    trivial_rep_mlp_bias: Optional[bool] = True
-    mlp_drop_probs: Optional[Tuple[float, float]] = (0., 0.)
-
-    ls_init_values: Optional[float]=None
-
-    # norm_layer: Callable = None, 
-    drop_path: Optional[float] = 0.
-
+    transformer_configs: List[EquivariantTransformerBlockConfig]
+    """
+    List of transformer block configs, one for each stage. Should have the same length as :attr:`subgroups`. 
+    Each config should specify the parameters for the transformer blocks to be
+    applied at that stage, except for the group (which will be set automatically
+    based on the subgroup sequence).
+    """
 
     def __post_init__(self):
+        ...
+
+
+    def validate(self):
+        _n_subgroups = len(self.subgroups)
+        _n_depths = len(self.depths)
+
+        assert _n_subgroups == _n_depths, f"Number of subgroups ({_n_subgroups}) must match number of depths ({_n_depths})."
+
         assert len(self.transformer_configs) > 0, "At least one transformer config must be provided."
-        for i,cfg in enumerate(self.transformer_configs):
-            cfg.attn_type = first_not_none(cfg.attn_type, self.attn_type)
-            cfg.trivial_rep_attn_bias = first_not_none(cfg.trivial_rep_attn_bias, self.trivial_rep_attn_bias)
-            cfg.attn_drop = first_not_none(cfg.attn_drop, self.attn_drop)
-            cfg.trivial_rep_proj_bias = first_not_none(cfg.trivial_rep_proj_bias, self.trivial_rep_proj_bias)
-            cfg.proj_drop = first_not_none(cfg.proj_drop, self.proj_drop)
 
-            cfg.activation = first_not_none(cfg.activation, self.activation)
-            cfg.activation_kw = first_not_none(cfg.activation_kw, self.activation_kw, allow_none=True)
+        _n_transformer_blocks_configs = len(self.transformer_configs)
 
-            cfg.trivial_rep_mlp_bias = first_not_none(cfg.trivial_rep_mlp_bias, self.trivial_rep_mlp_bias)
-            cfg.mlp_drop_probs = first_not_none(cfg.mlp_drop_probs, self.mlp_drop_probs)
+        assert _n_transformer_blocks_configs == _n_subgroups, f"Number of transformer block configs ({_n_transformer_blocks_configs}) must match number of subgroups ({_n_subgroups})."
 
-            cfg.ls_init_values = first_not_none(cfg.ls_init_values, self.ls_init_values, allow_none=True)
-
-            cfg.drop_path = first_not_none(cfg.drop_path, self.drop_path)
-
-
-@dataclass
-class EquivariantTransformerConfig:
-    subgroup: tuple
-    depth: int
-    dims: List[int]
-
-    homogeneous_space_copies: List[int]
-
-    num_heads: Union[int, List[int]]
-
-    attn_type: Optional[Literal['irrepwise', 'coupled']] = None 
-    trivial_rep_attn_bias: bool = None
-    attn_drop: float = None
-    trivial_rep_proj_bias: bool = None
-    proj_drop: float = None
-
-    activation: str = None
-    activation_kw: Optional[dict] = None
-
-    trivial_rep_mlp_bias: bool = None
-    mlp_drop_probs: Tuple[float, float] = None
-
-    ls_init_values: Optional[float]=None
-    # norm_layer: Callable = None, 
-    drop_path: float = None
+        for cfg in self.transformer_configs:
+            assert cfg.group is MISSING, "Each transformer block config should not specify a group."
 
 
 
 class SymmetryBreakingTransformer(nn.Module):
+    r"""
+    Let 
+
+    .. math::
+        H_m \xrightarrow{f_m} H_{m-1} \xrightarrow{f_{m-1}} H_{m-2}\dotsb H_1\xrightarrow{f_{1}} H_0 = G
+
+    be a sequence of group homomorphisms. 
+
+    This module applies a sequence of transformers and symmetry restrictions:
+
+    .. math::
+        \mathcal{T}^{H_m} \circ \mathrm{Res}^{H_{m-1}}_{H_m}\circ
+        \mathcal{T}^{H_{m-1}} \circ \mathrm{Res}^{H_{m-2}}_{H_{m-1}}\circ 
+        \mathcal{T}^{H_{m-2}}\circ 
+        \dotsb \circ
+        \mathcal{T}^{H_1}\circ \mathrm{Res}^G_{H_1}
+
+    where :math:`\mathcal{T}^{H_i}` is a transformer equivariant to the group :math:`H_i`
+    (sequence of :class:`EquivariantTransformerBlock`), and :math:`\mathrm{Res}^{H_{i-1}}_{H_i}` 
+    is a :class:`SymmetryRestriction` from :math:`H_{i-1}` to :math:`H_{i}`.
+
+    """
     def __init__(self, 
         config: SymmetryBreakingTransformerConfig
     ):
         super().__init__()
+        config.validate()
+
         self.group = config.group
 
         self.transformers = nn.ModuleList()
@@ -112,28 +101,14 @@ class SymmetryBreakingTransformer(nn.Module):
 
         for i, cfg in enumerate(config.transformer_configs):
 
-            homomorphism = _current_group.subgroup(*cfg.subgroup)
+            homomorphism = _current_group.subgroup(*config.subgroups[i])
             group = homomorphism.source
             _current_group = group
 
+            cfg.group = group
+
             transformer_blocks = nn.ModuleList(
-                [EquivariantTransformerBlock(EquivariantTransformerBlockConfig(
-                    group=group,
-                    dims=cfg.dims,
-                    num_heads=cfg.num_heads,
-                    homogeneous_space_copies=cfg.homogeneous_space_copies,
-                    attn_type=cfg.attn_type,
-                    trivial_rep_attn_bias=cfg.trivial_rep_attn_bias,
-                    attn_drop=cfg.attn_drop,
-                    trivial_rep_proj_bias=cfg.trivial_rep_proj_bias,
-                    proj_drop=cfg.proj_drop,
-                    activation=cfg.activation,
-                    activation_kw=cfg.activation_kw,
-                    trivial_rep_mlp_bias=cfg.trivial_rep_mlp_bias,
-                    mlp_drop_probs=cfg.mlp_drop_probs,
-                    ls_init_values=cfg.ls_init_values,
-                    drop_path=cfg.drop_path
-                )) for _ in range(cfg.depth)]
+                [EquivariantTransformerBlock(cfg) for _ in range(config.depths[i])]
             )
 
             self.transformers.append(transformer_blocks)
