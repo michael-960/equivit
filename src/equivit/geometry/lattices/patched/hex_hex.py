@@ -11,6 +11,11 @@ class HexPatches(PatchedLattice):
 
         assert patch_orientation in ['x', 'y'], f'Invalid patch orientation: {patch_orientation}'
 
+
+        self.N1 = N1
+        self.N2 = N2
+        self.patch_orientation = patch_orientation
+
         if patch_orientation == 'y':
             self.hex1 = Hexagon(N1, orientation='x')
             self.hex2 = Hexagon(N2, orientation='y')
@@ -111,3 +116,6 @@ class HexPatches(PatchedLattice):
              self.points[:,None,1] + r*np.sin(theta)]
             ).transpose(1,2,0)
         return verts
+
+    def __repr__(self):
+        return f'{self.__class__.__name__}(N1={self.N1}, N2={self.N2}, patch_orientation={self.patch_orientation})'

@@ -1,6 +1,6 @@
 defaults:
   - data: patternnet_aug
-  - model: octic/d4/a/tiny
+  - model: octic/D4/a/small
   - _self_
 
 compile: true

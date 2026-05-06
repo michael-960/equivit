@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch
 import torch.nn.functional as F
 import numpy as np
-from typing import Tuple, List
+from typing import Dict, Tuple, List, Union, Optional
 import math
 
 from ..geometry import Group, Lattice, GroupAction, IrrepType
@@ -13,6 +13,8 @@ from .lattice_irrep_handler import GroupActionIrrepProjectionCalculator
 from .utils import assert_all_not_quaternionic
 
 from .init import complex_uniform_disk_, kaiming_uniform_, complex_kaiming_uniform_
+
+from ._core import resolve_dims
 
 
 
@@ -55,7 +57,7 @@ class EquivariantPatchEmbed(nn.Module):
     Args:
         action: a group action.
         in_channels: an integer :math:`C` specifying the number of input channels
-        out_channels: list of integers :math:`C_0, C_1, \dotsb, C_{M-1}` specifying the number of output channels for each irrep
+        dims: list of integers :math:`C_0, C_1, \dotsb, C_{M-1}` specifying the number of output channels for each irrep
         use_sparse: whether to use sparse matrices for the projection (can save memory and speed up computation for large groups, but may be slower for small groups)
 
     Note:
@@ -65,7 +67,7 @@ class EquivariantPatchEmbed(nn.Module):
     def __init__(self, 
         action: GroupAction,
         in_channels: int, 
-        out_channels: List[int],
+        dims: Union[List[int], Dict[str, int]],
         use_sparse: bool = True,
         # streams: List[torch.cuda.Stream]=None
     ):
@@ -75,7 +77,7 @@ class EquivariantPatchEmbed(nn.Module):
 
         self.action = action
         self.in_channels = in_channels
-        self.out_channels = out_channels
+        self.dims = resolve_dims(action.group, dims)
 
         self.proj_calc = GroupActionIrrepProjectionCalculator(action, use_sparse=use_sparse)
 
@@ -88,11 +90,11 @@ class EquivariantPatchEmbed(nn.Module):
                        for irrep in irreps]
         self.is_complex = [irrep.rep_type is IrrepType.COMPLEX for irrep in irreps]
 
-        assert len(self.out_channels) == self.proj_calc.num_irreps, f"Number of output channels ({len(self.out_channels)}) must match number of irreps ({self.proj_calc.num_irreps})"
+        assert len(self.dims) == self.proj_calc.num_irreps, f"Number of output channels ({len(self.dims)}) must match number of irreps ({self.proj_calc.num_irreps})"
 
         self.coefficients = nn.ParameterList(
             [nn.Parameter(
-                torch.zeros((self.proj_calc.num_irrep_copies[i], in_channels*out_channels[i]), dtype=self.dtypes[i])
+                torch.zeros((self.proj_calc.num_irrep_copies[i], in_channels*self.dims[i]), dtype=self.dtypes[i])
             ) 
                 for i in range(self.proj_calc.num_irreps)]
         )
@@ -117,7 +119,7 @@ class EquivariantPatchEmbed(nn.Module):
         filts = self.proj_calc(self.coefficients)
         # each entry has shape (Lpatch, C*Ci, di) -> (Lpatch*C, Ci*di)
         # note: di is the complex dimension of the irrep
-        return [filt.view(self.L*self.in_channels, self.out_channels[i]*self.irrep_dims[i]) for i, filt in enumerate(filts)]
+        return [filt.view(self.L*self.in_channels, self.dims[i]*self.irrep_dims[i]) for i, filt in enumerate(filts)]
 
     def forward(self, x: torch.Tensor) -> List[torch.Tensor]:
         """
@@ -150,11 +152,11 @@ class EquivariantPatchEmbed(nn.Module):
                 # outs[i] = (x @ filts[i].view(torch.float32)).view(torch.complex64).unflatten(-1, (self.out_channels[i], self.irrep_dims[i])) # (*, Ci, di)
                 outs[i] = torch.view_as_complex(
                                                 (x @ torch.view_as_real(filts[i]).flatten(-2,-1)).unflatten(-1, (-1, 2))
-                                ).unflatten(-1, (self.out_channels[i], self.irrep_dims[i])) # (*, Ci, di)
+                                ).unflatten(-1, (self.dims[i], self.irrep_dims[i])) # (*, Ci, di)
             else:
-                outs[i] = (x @ filts[i]).unflatten(-1, (self.out_channels[i], self.irrep_dims[i])) # (*, Ci, di)
+                outs[i] = (x @ filts[i]).unflatten(-1, (self.dims[i], self.irrep_dims[i])) # (*, Ci, di)
         return outs
 
     def __repr__(self) -> str:
-        return f"{self.__class__.__name__}(action={self.action}, in_channels={self.in_channels}, out_channels={self.out_channels})"
+        return f"{self.__class__.__name__}(action={self.action}, in_channels={self.in_channels}, dims={self.dims})"
 

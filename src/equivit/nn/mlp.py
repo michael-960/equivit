@@ -10,7 +10,10 @@ import math
 
 from .init import kaiming_uniform_, complex_kaiming_uniform_
 
-# TODO: this fails with torch.compile when there are complex tensors.
+from ._core import resolve_dims
+
+
+# apparently torch.compile doesn't work properly with complex tensors
 
 
 class EquivariantMLP(nn.Module):
@@ -43,11 +46,12 @@ class EquivariantMLP(nn.Module):
         super().__init__()
 
         _num_irreps = len(group.real_irreps())
-        assert len(dims_in) == _num_irreps, f"Length of dims_in ({len(dims_in)}) must be equal to the number of real irreps of the group ({_num_irreps})"
-        assert len(dims_out) == _num_irreps, f"Length of dims_in ({len(dims_out)})must be equal to the number of real irreps of the group ({_num_irreps})"
+        # assert len(dims_in) == _num_irreps, f"Length of dims_in ({len(dims_in)}) must be equal to the number of real irreps of the group ({_num_irreps})"
+        # assert len(dims_out) == _num_irreps, f"Length of dims_in ({len(dims_out)})must be equal to the number of real irreps of the group ({_num_irreps})"
         assert len(homogeneous_space_copies) == len(group.all_homogeneous_space_actions()), f"Length of homogeneous_space_copies ({len(homogeneous_space_copies)}) must be equal to the number of homogeneous space actions of the group ({len(group.all_homogeneous_space_actions())})"
 
-        self.dims_in = dims_in
+        self.dims_in = resolve_dims(group, dims_in)
+        self.dims_out = resolve_dims(group, dims_out)
         
         # shape: (num_homog_spaces, num_irreps)
         self.multipilcity_matrix = np.array([list(action.irrep_multiplicities().values()) for action in group.all_homogeneous_space_actions()])
@@ -55,7 +59,7 @@ class EquivariantMLP(nn.Module):
         self.homogeneous_space_copies = np.array(homogeneous_space_copies)
         self.dims_hidden = (self.homogeneous_space_copies @ self.multipilcity_matrix).tolist()
 
-        self.fc1 = EquivariantLinear(group, dims_in, self.dims_hidden, trivial_rep_bias=trivial_rep_bias)
+        self.fc1 = EquivariantLinear(group, self.dims_in, self.dims_hidden, trivial_rep_bias=trivial_rep_bias)
 
         self.act = EquivariantNonlinear(group, homogeneous_space_copies, activation=activation, activation_kw=activation_kw)
 
@@ -66,7 +70,7 @@ class EquivariantMLP(nn.Module):
         else:
             self.norm = nn.Identity()
 
-        self.fc2 = EquivariantLinear(group, self.dims_hidden, dims_out, trivial_rep_bias=trivial_rep_bias)
+        self.fc2 = EquivariantLinear(group, self.dims_hidden, self.dims_out, trivial_rep_bias=trivial_rep_bias)
 
         self.drop2 = ListDropout(drop_probs[1])
 

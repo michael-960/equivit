@@ -54,24 +54,26 @@ class OcticViTBackboneConfig:
     depth: int = MISSING
     """Number of transformer blocks."""
 
-    subgroup: tuple = MISSING
+    subgroup: tuple = ('D', 4, 0)
     """Subgroup for the equivariant operations. See :meth:`equivit.geometry.DihedralGroup.subgroup` for details."""
 
     def __post_init__(self):
+
+        _group = D4.subgroup(*self.subgroup).source
+        self.dims = eqnn.resolve_dims(_group, self.dims)
 
         resolve_values(self, self.tokenizer_config, keys=('dims', 'subgroup'))
 
         resolve_values(self, self.transformer_block_config, keys=('dims',))
 
-        _group = D4.subgroup(*self.subgroup).source
         if self.transformer_block_config.group is MISSING:
             self.transformer_block_config.group = _group
         else:
             assert self.transformer_block_config.group is _group, f"Group in transformer block config ({self.transformer_block_config.group}) does not match subgroup specified in backbone config ({_group})"
 
+
     def resolve_defaults(self):
-        if self.subgroup is MISSING:
-            self.subgroup = ('D', 4, 0)
+        ...
 
 
 class OcticTokenize(nn.Module):
@@ -99,12 +101,13 @@ class OcticTokenize(nn.Module):
         patch_action = self.square2.action
         self.patch_embed = eqnn.EquivariantPatchEmbed(
                                 patch_action.pullback(patch_action.group.subgroup(*config.subgroup)), 
-                                config.in_channels, config.dims)
+                                in_channels=config.in_channels, 
+                                dims=config.dims)
 
         interpatch_action = self.square1.action
         self.pos_enc = eqnn.EquivariantPositionalEncoding(
                                 interpatch_action.pullback(interpatch_action.group.subgroup(*config.subgroup)), 
-                                config.dims)
+                                dims=config.dims)
 
         self.add_cls_token = eqnn.AppendClassToken(config.dims[0])
 
@@ -144,6 +147,7 @@ class OcticViTBackbone(nn.Module):
     """
     def __init__(self, config: OcticViTBackboneConfig):
         super().__init__()
+        config.resolve_defaults()
 
         self.tokenization_stem = OcticTokenize(config.tokenizer_config)
 

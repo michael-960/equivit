@@ -1,0 +1,32 @@
+_target_: equivit.models.build_named_sequential
+preprocess:
+  _target_: torch.nn.Flatten
+  start_dim: -2
+  end_dim: -1
+backbone:
+  _target_: equivit.models.OcticViTBackbone
+  config:
+    _target_: equivit.models.OcticViTBackboneConfig
+    depth: 12
+    dims:
+      A1: 18
+      A2: 18
+      B1: 18
+      B2: 18
+      E1: 36
+    subgroup: [D, 4, 0]
+    tokenizer_config:
+      _target_: equivit.models.OcticTokenizeConfig
+      img_size: 256
+      patch_size: 16
+      in_channels: 3
+    transformer_block_config:
+      _target_: equivit.nn.EquivariantTransformerBlockConfig
+      attn_type: coupled
+      num_heads: 3
+      homogeneous_space_copies: [72, 0, 0, 0, 0, 0, 0, 0]
+      activation: gelu
+head:
+  _target_: equivit.nn.InvariantClassificationHead
+  dim: 108
+  num_logits: ${oc.select:data.num_logits,10}

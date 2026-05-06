@@ -32,3 +32,4 @@ val_loader:
   shuffle: false
 
 num_logits: 38
+img_size: 256

@@ -9,6 +9,8 @@ from .utils import assert_all_not_quaternionic
 
 from .init import complex_uniform_disk_, kaiming_uniform_, complex_kaiming_uniform_
 
+from ._core import resolve_dims
+
 
 class EquivariantLinear(nn.Module):
     r"""
@@ -61,19 +63,22 @@ class EquivariantLinear(nn.Module):
         self.num_irreps = len(irreps)
         self.dtypes = [torch.float32 if irrep.rep_type is IrrepType.REAL else torch.complex64 for irrep in irreps.values()]
 
-        assert len(dims_in) == self.num_irreps, "Length of dims_in should match number of irreps"
-        assert len(dims_out) == self.num_irreps, "Length of dims_out should match number of irreps"
+        # assert len(dims_in) == self.num_irreps, "Length of dims_in should match number of irreps"
+        # assert len(dims_out) == self.num_irreps, "Length of dims_out should match number of irreps"
 
-        self.dims_in = list(dims_in)
-        self.dims_out = list(dims_out)
+        # self.dims_in = list(dims_in)
+        # self.dims_out = list(dims_out)
+
+        self.dims_in = resolve_dims(group, dims_in)
+        self.dims_out = resolve_dims(group, dims_out)
 
         self.weights = nn.ParameterList([
-            nn.Parameter(torch.zeros(dims_out[i], dims_in[i], dtype=self.dtypes[i])) 
+            nn.Parameter(torch.zeros(self.dims_out[i], self.dims_in[i], dtype=self.dtypes[i])) 
             for i in range(self.num_irreps)
         ])
 
         if trivial_rep_bias:
-            self.bias = nn.Parameter(torch.zeros(dims_out[0], 1))
+            self.bias = nn.Parameter(torch.zeros(self.dims_out[0], 1))
         else:
             self.register_parameter('bias', None)
             

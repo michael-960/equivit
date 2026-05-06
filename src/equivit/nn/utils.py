@@ -1,6 +1,8 @@
 import torch
 import torch.nn as nn
-from typing import List, Optional, Callable
+from typing import Dict, List, Optional, Callable, Union
+from collections.abc import Sequence, Mapping
+
 from ..geometry import Group, IrrepType, GroupElement, GroupAction, EquivariantPullbackBundle
 
 
@@ -193,3 +195,6 @@ def get_activation_function(name: str, **kw) -> Callable:
         raise ValueError(f"Unsupported activation function: {name}. Supported values are {list(_act_dict.keys())}")
 
     return _act_dict[name](**kw)
+
+
+

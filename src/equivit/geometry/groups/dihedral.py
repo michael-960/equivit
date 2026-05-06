@@ -243,6 +243,7 @@ class DihedralGroup(Group, metaclass=CachedGroupMeta):
         return (n,)
 
 
+D1 = DihedralGroup(1)
 D2 = DihedralGroup(2)
 D3 = DihedralGroup(3)
 D4 = DihedralGroup(4)

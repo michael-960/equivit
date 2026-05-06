@@ -1,12 +1,14 @@
 import math
 import torch
 import torch.nn as nn
-from typing import List, Tuple
+from typing import Dict, List, Tuple, Union
 
 from ..geometry import Lattice, Group, GroupElement, GroupAction, IrrepType, EquivariantPullbackBundle
 from .lattice_irrep_handler import GroupActionIrrepProjectionCalculator, InducedRepresentationInvariantSubspaceCalculator
 
 from .utils import assert_all_not_quaternionic
+
+from ._core import resolve_dims
 
 
 # TODO: the current implementation does not include the hexvit case. We need to add this later.
@@ -36,7 +38,7 @@ class EquivariantPositionalEncoding(nn.Module):
     def __init__(
         self,  
         action: GroupAction, 
-        dims: List[int],
+        dims: Union[List[int], Dict[str, int]],
         use_sparse: bool = True
     ):
         super().__init__()
@@ -45,7 +47,7 @@ class EquivariantPositionalEncoding(nn.Module):
         self.action = action
         self.use_sparse = use_sparse
 
-        self.dims = dims
+        self.dims = resolve_dims(action.group, dims)
         self.proj_calc = GroupActionIrrepProjectionCalculator(action, use_sparse=use_sparse)
 
         irreps = action.group.real_irreps().values()

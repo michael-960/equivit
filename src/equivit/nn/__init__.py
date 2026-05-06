@@ -32,3 +32,5 @@ from . import init
 
 from . import vanilla
 
+
+from ._core import resolve_dims
