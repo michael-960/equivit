@@ -101,7 +101,7 @@ def get_config(base_dim, subgroup_arg, num_heads):
 
 
 
-if __name__ == '__main__':
+def generate(config_dir: str):
     VARIANTS = ['tiny', 'small', 'base']
 
     base_dim = {
@@ -118,12 +118,11 @@ if __name__ == '__main__':
 
     from pathlib import Path
 
-    common_root = f'experiments/conf/model/honey'
     for variant in VARIANTS:
         for subgroup_arg in subgroup_args:
             cfg = get_config(base_dim[variant], subgroup_arg, num_heads=num_heads[variant])
             subgroup_str = f'{subgroup_arg[0]}{subgroup_arg[1]}'
-            filename = f'{common_root}/{subgroup_str}/a/{variant}.yaml'
+            filename = f'{config_dir}/model/honey/{subgroup_str}/a/{variant}.yaml'
             Path(filename).parent.mkdir(parents=True, exist_ok=True)
             with open(filename, 'w') as f:
                 f.write(cfg)

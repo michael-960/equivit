@@ -24,6 +24,7 @@ Contents
    .. :caption: Contents:
 
    quickstart
+   guide_training
    guide_groups
    modules
 

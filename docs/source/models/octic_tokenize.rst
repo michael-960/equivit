@@ -5,5 +5,8 @@ OcticTokenize
    :members:
 
 
+OcticTokenizeConfig
+-----------------------
+
 .. autoclass:: equivit.models.OcticTokenizeConfig
    :members:

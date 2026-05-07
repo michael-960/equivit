@@ -5,7 +5,10 @@ if TYPE_CHECKING:
     MISSING: Any = ...
 
 else:
-    MISSING = object() # Sentinel value for missing data in dataclasses.
+    class _MissingSentinel:
+        def __repr__(self) -> str:
+            return "MISSING"
+    MISSING = _MissingSentinel() # Sentinel value for missing data in dataclasses.
 
 
 def first_not_missing(*args, allow_missing=False):

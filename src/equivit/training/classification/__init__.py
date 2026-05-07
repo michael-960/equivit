@@ -3,3 +3,5 @@
 from .model import ClassificationModel
 
 from .data import ClassificationDataModule
+
+from . import train

@@ -35,12 +35,12 @@ callbacks:
     save_last: true
 
   grad_norm:
-    _target_: equivit.lightning.LogGradientNorm
+    _target_: equivit.training.LogGradientNorm
     norm_type: 2.0
     layer_types: ['equivit.nn.EquivariantLinear']
 
   param_norm:
-    _target_: equivit.lightning.LogParamNorm
+    _target_: equivit.training.LogParamNorm
     norm_type: 2.0
     layer_types: ['equivit.nn.EquivariantLinear']
 

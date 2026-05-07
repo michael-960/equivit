@@ -6,7 +6,7 @@ OcticViTBackbone
 
 
 OcticViTBackboneConfig
-========================
+-----------------------
 
 .. autoclass:: equivit.models.OcticViTBackboneConfig
    :members:
