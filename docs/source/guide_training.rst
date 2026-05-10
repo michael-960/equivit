@@ -65,7 +65,7 @@ in ``conf/model/octic/D4/a/base.yaml``:
 
 
 This specific config will create a :math:`D_4`-equivariant ViT with 12
-:doc:`nn/EquivariantTransformerBlock` layers.
+:doc:`nn/transformer_block` layers.
 See :doc:`models/octic` for more details on the model architecture and config options.
 
 
@@ -85,37 +85,37 @@ accessed via HuggingFace):
 .. code-block:: yaml
 
    train_loader:
-   _target_: torch.utils.data.DataLoader
-   dataset: 
-      _target_: equivit.data.PatternNet
-      split: "train"
+      _target_: torch.utils.data.DataLoader
+      dataset:
+         _target_: equivit.data.PatternNet
+         split: "train"
 
-      transform: 
-         _target_: torchvision.transforms.Compose
-         transforms: 
-         - _target_: torchvision.transforms.ToTensor
-         - _target_: torchvision.transforms.RandomRotation
-            degrees: [-30, 30]
+         transform:
+            _target_: torchvision.transforms.Compose
+            transforms:
+            - _target_: torchvision.transforms.ToTensor
+            - _target_: torchvision.transforms.RandomRotation
+              degrees: [-30, 30]
 
-   batch_size: 16
-   num_workers: 4
-   shuffle: true
+      batch_size: 16
+      num_workers: 4
+      shuffle: true
 
 
    val_loader:
-   _target_: torch.utils.data.DataLoader
-   dataset: 
-      _target_: equivit.data.PatternNet
-      split: "val"
+      _target_: torch.utils.data.DataLoader
+      dataset:
+         _target_: equivit.data.PatternNet
+         split: "val"
 
-      transform: 
-         _target_: torchvision.transforms.Compose
-         transforms: 
-         - _target_: torchvision.transforms.ToTensor
+         transform:
+            _target_: torchvision.transforms.Compose
+            transforms:
+            - _target_: torchvision.transforms.ToTensor
 
-   batch_size: 16
-   num_workers: 4
-   shuffle: false
+      batch_size: 16
+      num_workers: 4
+      shuffle: false
 
    num_logits: 38
    img_size: 256
@@ -154,20 +154,20 @@ Finally, place the following in ``conf/config.yaml`` to set up the training conf
 
    trainer:
       _target_: lightning.Trainer
-         max_epochs: 50
-         accelerator: auto
-         devices: auto
-         enable_progress_bar: true
+      max_epochs: 50
+      accelerator: auto
+      devices: auto
+      enable_progress_bar: true
 
 
    callbacks:
       model_checkpoint:
          _target_: pytorch_lightning.callbacks.ModelCheckpoint
-            dirpath:  "${hydra:runtime.output_dir}/checkpoints"
-            monitor: val_loss
-            mode: min
-            save_top_k: 2
-            save_last: true
+         dirpath:  "${hydra:runtime.output_dir}/checkpoints"
+         monitor: val_loss
+         mode: min
+         save_top_k: 2
+         save_last: true
 
    loggers:
       mlflow:
@@ -228,6 +228,6 @@ For example:
 
 .. code-block:: bash
 
-   python train.py +model.head.drop_rate=0.1 +model.backbone.config.transformer_block_config.attn_drop=0.1 +model.backbone.config.transformer_block_config.drop_path=0.05
+   python -m equivit.training train-classifier --config-dir=conf --config-name=config +model.head.drop_rate=0.1 +model.backbone.config.transformer_block_config.attn_drop=0.1 +model.backbone.config.transformer_block_config.drop_path=0.05
 
 

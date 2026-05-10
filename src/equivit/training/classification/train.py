@@ -3,24 +3,11 @@ from hydra.utils import instantiate
 from omegaconf import DictConfig
 import lightning as L
 
-from ...version import __version__ as equivit_version
 from .model import ClassificationModel
 from .data import ClassificationDataModule
-import torch
 
+from ..log_env import EnvironmentLoggerCallback
 
-class EnvironmentLoggerCallback(L.Callback):
-    def on_train_start(self, trainer, pl_module):
-        if trainer.logger:
-            env_info = {
-                "env/pytorch_version": torch.__version__,
-                "env/lightning_version": L.__version__,
-                "env/cuda_available": torch.cuda.is_available(),
-                "env/cuda_version": torch.version.cuda if torch.cuda.is_available() else "N/A",
-                "env/equivit_version": equivit_version,
-            }
-            # Log the info using the trainer's logger
-            trainer.logger.log_hyperparams(env_info)
 
 
 @hydra.main(version_base=None, config_path=None, config_name=None)

@@ -8,6 +8,7 @@ from hydra.utils import instantiate
 
 from dataclasses import dataclass
 
+from .confmat import ConfusionMatrixCalculator
 
 @dataclass
 class TrainingConfig:
@@ -46,44 +47,51 @@ class ClassificationModel(LightningModule):
 
         self.save_hyperparameters()
 
-        # self.save_hyperparameters({
-        #     'model': model_cfg,
-        #     'compile': compile,
-        #     'loss_fn': loss_fn_cfg,
-        #     'optimizer': optimizer_cfg,
-        #     'scheduler': scheduler_cfg,
-        #     'extra': extra_cfg
-        # })
-        
-    def training_step(self, batch, batch_idx):
-        x, y = batch
-        logits = self.model(x)
-
-        if self.binary:
-            loss = self.loss_fn(logits.squeeze(-1), y.to(torch.float32))
-        else:
-            loss = self.loss_fn(logits, y)
-
-        self.epoch_batch_count += 1
-        self.epoch_total_loss += loss.detach().item()
-        # self.log('train_loss', loss, prog_bar=True)
-        self.log('avg_train_loss', self.epoch_total_loss / self.epoch_batch_count, prog_bar=True)
-        self.log('train_loss', loss.detach())
-        return loss
+        self.train_confmat_calculator = ConfusionMatrixCalculator()
+        self.val_confmat_calculator = ConfusionMatrixCalculator()
 
     def on_train_epoch_start(self):
         self.epoch_batch_count = 0
         self.epoch_total_loss = 0.
+        self.train_confmat_calculator.reset_confusion_matrix()
+
+    def training_step(self, batch, batch_idx):
+        x, y = batch
+        logits = self.model(x) # (B, num_classes) or (B, 1) for binary
+        if self.binary:
+            loss = self.loss_fn(logits.squeeze(-1), y.to(torch.float32))
+            preds = (logits.squeeze(-1) > 0).to(torch.int64) # (B,)
+        else:
+            loss = self.loss_fn(logits, y)
+            preds = torch.argmax(logits, dim=-1) # (B,)
+
+        self.epoch_batch_count += 1
+        self.epoch_total_loss += loss.detach().item()
+
+        self.train_confmat_calculator.update(y, preds)
+
+        # self.log('train_loss', loss, prog_bar=True)
+        self.log('train/avg_loss', self.epoch_total_loss / self.epoch_batch_count, prog_bar=True)
+        self.log('train/loss', loss.detach())
+
+        return loss
+
+    def on_validation_epoch_start(self):
+        self.val_confmat_calculator.reset_confusion_matrix()
 
     def validation_step(self, batch, batch_idx):
         x, y = batch
-        logits = self.model(x)
+        logits = self.model(x) # (B, num_classes) or (B, 1) for binary
         if self.binary:
             loss = self.loss_fn(logits.squeeze(-1), y.to(torch.float32))
+            preds = (logits.squeeze(-1) > 0).long() # (B,)
         else:
             loss = self.loss_fn(logits, y)
+            preds = torch.argmax(logits, dim=-1) # (B,)
 
-        self.log('val_loss', loss, prog_bar=True)
+        self.val_confmat_calculator.update(y, preds)
+
+        self.log('val/loss', loss, prog_bar=True)
         return loss
 
     def configure_optimizers(self):
