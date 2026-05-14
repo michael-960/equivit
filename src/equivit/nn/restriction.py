@@ -7,6 +7,8 @@ from ..geometry import Group, GroupHomomorphism, find_irrep_components, IrrepTyp
 
 from .utils import assert_all_not_quaternionic
 
+from . import functional as EF
+
 
 
 class SymmetryRestriction(nn.Module):
@@ -109,7 +111,8 @@ class SymmetryRestriction(nn.Module):
 
         # first, make everything real
         # x = [z.view(torch.float32) for z in x]
-        x = [torch.view_as_real(z).flatten(-2,-1) if self.G_irrep_complex[i] else z for i, z in enumerate(x)]
+        # x = [torch.view_as_real(z).flatten(-2,-1) if self.G_irrep_complex[i] else z for i, z in enumerate(x)]
+        x = [EF.to_real(z).flatten(-2,-1) if self.G_irrep_complex[i] else z for i, z in enumerate(x)]
 
         y = [None] * self.num_H_irreps
 
@@ -128,7 +131,8 @@ class SymmetryRestriction(nn.Module):
             y[j] = torch.cat(_, dim=-2)
             if self.H_irrep_complex[j]:
                 # y[j] = y[j].view(torch.complex64)
-                y[j] = torch.view_as_complex(y[j].unflatten(-1, (-1, 2)))
+                # y[j] = torch.view_as_complex(y[j].unflatten(-1, (-1, 2)))
+                y[j] = EF.to_complex(y[j].unflatten(-1, (-1, 2)))
 
         return y
 

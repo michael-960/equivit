@@ -1,6 +1,5 @@
 import torch
 
-
 def to_real(z: torch.Tensor) -> torch.Tensor:
     """
     Convert a complex tensor to a real tensor.
@@ -12,7 +11,7 @@ def to_real(z: torch.Tensor) -> torch.Tensor:
         A real tensor of shape :math:`(*, 2)`, where the last dimension contains the real and imaginary parts of the complex tensor.
 
     """
-    return torch.stack([z.real, z.imag], dim=-1)
+    return torch.stack([z.real, z.imag], dim=-1).contiguous()
 
 
 def to_complex(x: torch.Tensor) -> torch.Tensor:
@@ -26,4 +25,4 @@ def to_complex(x: torch.Tensor) -> torch.Tensor:
         A complex tensor of shape :math:`(*,)`.
 
     """
-    return torch.complex(x[..., 0], x[..., 1])
+    return torch.complex(x[..., 0], x[..., 1]).contiguous()

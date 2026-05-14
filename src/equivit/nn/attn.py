@@ -4,14 +4,17 @@ import torch.nn as nn
 import torch.nn.functional as F
 from typing import Tuple, List
 
+from collections.abc import Sequence
+
 from ..geometry import Group, IrrepType
 from .linear import EquivariantLinear
 from .drop import ListDropout
 
 from .utils import assert_all_not_quaternionic
 
-from .init import complex_uniform_disk_, kaiming_uniform_, complex_kaiming_uniform_
+from . import functional as EF
 
+from .init import complex_uniform_disk_, kaiming_uniform_, complex_kaiming_uniform_
 
 
 class EquivariantCoupledAttention(nn.Module):
@@ -134,7 +137,8 @@ class EquivariantCoupledAttention(nn.Module):
         for i, qkv_i in enumerate(self.qkv(x)):
             # qkv_i has shape (*, L, 3*Ci, di)
             if self.is_complex[i]:
-                qkv_i = torch.view_as_real(qkv_i).flatten(-2).view(*common_shape, 3, self.num_heads, -1)
+                # qkv_i = torch.view_as_real(qkv_i).flatten(-2).view(*common_shape, 3, self.num_heads, -1)
+                qkv_i = EF.to_real(qkv_i).flatten(-2).view(*common_shape, 3, self.num_heads, -1)
             else:
                 qkv_i = qkv_i.view(*common_shape, 3, self.num_heads, -1)
 
@@ -158,7 +162,8 @@ class EquivariantCoupledAttention(nn.Module):
         y = [z.reshape(*common_shape, self.dims[i], self.irrep_real_dims[i]).contiguous() for i, z in enumerate(y)] 
         # list of (*, L, Ci, Di) where Di is the real dimension of the irrep
 
-        y = [torch.view_as_complex(z.unflatten(-1, (-1, 2))) if self.is_complex[i] else z for i, z in enumerate(y)]
+        # y = [torch.view_as_complex(z.unflatten(-1, (-1, 2))) if self.is_complex[i] else z for i, z in enumerate(y)]
+        y = [EF.to_complex(z.unflatten(-1, (-1, 2))) if self.is_complex[i] else z for i, z in enumerate(y)]
         # list of real or complex tensors, each of shape (*, L, Ci, di) where di is the (complex) dimension of the irrep
 
         return self.proj_drop(self.proj(y))
@@ -197,6 +202,10 @@ class EquivariantIrrepwiseAttention(nn.Module):
         self.group = group
         self.irreps = group.real_irreps()
         self.num_irreps = len(self.irreps)
+
+        assert isinstance(dims, Sequence), f"dims should be a list of integers specifying the number of channels for each irrep, but got {dims}"
+        assert isinstance(num_heads, Sequence), f"num_heads should be a list of integers specifying the number of attention heads for each irrep, but got {num_heads}"
+
         assert len(dims) == self.num_irreps, f"Length of dims ({len(dims)}) should match the number of irreps ({self.num_irreps})"
         assert len(num_heads) == self.num_irreps, f"Length of num_heads ({len(num_heads)}) should match the number of irreps ({self.num_irreps})"
         for i, (c,h) in enumerate(zip(dims, num_heads)): assert c % h == 0, f'num_heads[{i}] ({h}) does not divide dims[{i}] ({c})'
@@ -279,9 +288,12 @@ class EquivariantIrrepwiseAttention(nn.Module):
             v_i = qkv_i.select(-3, 2)
 
             if self.is_complex[i]:
-                q_i = torch.view_as_real(q_i).flatten(-2)
-                k_i = torch.view_as_real(k_i).flatten(-2)
-                v_i = torch.view_as_real(v_i).flatten(-2)
+                # q_i = torch.view_as_real(q_i).flatten(-2)
+                # k_i = torch.view_as_real(k_i).flatten(-2)
+                # v_i = torch.view_as_real(v_i).flatten(-2)
+                q_i = EF.to_real(q_i).flatten(-2)
+                k_i = EF.to_real(k_i).flatten(-2)
+                v_i = EF.to_real(v_i).flatten(-2)
 
 
             y_i = F.scaled_dot_product_attention(
@@ -293,7 +305,8 @@ class EquivariantIrrepwiseAttention(nn.Module):
             if self.is_complex[i]:
                 # (*, L, num_heads_i, Ci//num_heads_i * di*2) float32
                 # -> (*, L, num_heads_i, Ci//num_heads_i * di) complex64
-                y_i = y_i.view(torch.complex64)                        
+                # y_i = y_i.view(torch.complex64)                        
+                y_i = EF.to_complex(y_i.unflatten(-1, (-1, 2)))
 
             # can we do view here?
             # y_i is not contiguous because of the scaled_dot_product_attention, so we would need to call contiguous() before view()

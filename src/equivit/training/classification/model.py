@@ -33,6 +33,7 @@ class ClassificationModel(LightningModule):
         self.model = instantiate(model_cfg, _convert_='all')
         if compile:
             self.model = torch.compile(self.model)
+            # self.model = torch.compile(self.model, backend='aot_eager')
 
         self.binary = binary
 
@@ -60,10 +61,10 @@ class ClassificationModel(LightningModule):
         logits = self.model(x) # (B, num_classes) or (B, 1) for binary
         if self.binary:
             loss = self.loss_fn(logits.squeeze(-1), y.to(torch.float32))
-            preds = (logits.squeeze(-1) > 0).to(torch.int64) # (B,)
+            preds = (logits.detach().squeeze(-1) > 0).to(torch.int64) # (B,)
         else:
             loss = self.loss_fn(logits, y)
-            preds = torch.argmax(logits, dim=-1) # (B,)
+            preds = torch.argmax(logits.detach(), dim=-1) # (B,)
 
         self.epoch_batch_count += 1
         self.epoch_total_loss += loss.detach().item()
@@ -84,10 +85,10 @@ class ClassificationModel(LightningModule):
         logits = self.model(x) # (B, num_classes) or (B, 1) for binary
         if self.binary:
             loss = self.loss_fn(logits.squeeze(-1), y.to(torch.float32))
-            preds = (logits.squeeze(-1) > 0).long() # (B,)
+            preds = (logits.detach().squeeze(-1) > 0).long() # (B,)
         else:
             loss = self.loss_fn(logits, y)
-            preds = torch.argmax(logits, dim=-1) # (B,)
+            preds = torch.argmax(logits.detach(), dim=-1) # (B,)
 
         self.val_confmat_calculator.update(y, preds)
 

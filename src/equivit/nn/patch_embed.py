@@ -16,6 +16,8 @@ from .init import complex_uniform_disk_, kaiming_uniform_, complex_kaiming_unifo
 
 from ._core import resolve_dims
 
+from . import functional as EF
+
 
 
 # Patchembed can be decomposed into two steps:
@@ -150,13 +152,16 @@ class EquivariantPatchEmbed(nn.Module):
         for i in range(self.proj_calc.num_irreps):
             if self.is_complex[i]:
                 # outs[i] = (x @ filts[i].view(torch.float32)).view(torch.complex64).unflatten(-1, (self.out_channels[i], self.irrep_dims[i])) # (*, Ci, di)
-                outs[i] = torch.view_as_complex(
-                                                (x @ torch.view_as_real(filts[i]).flatten(-2,-1)).unflatten(-1, (-1, 2))
+                # outs[i] = torch.view_as_complex(
+                #                                 (x @ torch.view_as_real(filts[i]).flatten(-2,-1)).unflatten(-1, (-1, 2))
+                #                 ).unflatten(-1, (self.dims[i], self.irrep_dims[i])) # (*, Ci, di)
+                outs[i] = EF.to_complex(
+                                                (x @ EF.to_real(filts[i]).flatten(-2,-1)).unflatten(-1, (-1, 2))
                                 ).unflatten(-1, (self.dims[i], self.irrep_dims[i])) # (*, Ci, di)
+
             else:
                 outs[i] = (x @ filts[i]).unflatten(-1, (self.dims[i], self.irrep_dims[i])) # (*, Ci, di)
         return outs
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}(action={self.action}, in_channels={self.in_channels}, dims={self.dims})"
-
