@@ -5,6 +5,8 @@ import lightning as L
 from lightning.pytorch import loggers as pl_loggers
 # from pytorch_lighting import loggers as pl_loggers_
 
+from ._core import add_tags
+
 
 
 
@@ -19,20 +21,23 @@ class EnvironmentLoggerCallback(L.Callback):
         }
 
         for logger in trainer.loggers:
-            if isinstance(logger, (pl_loggers.MLFlowLogger)):
-                for key, value in env_info.items():
-                    logger.experiment.set_tag(logger.run_id, key, value)
 
-            elif isinstance(logger, pl_loggers.WandbLogger):
+            add_tags(logger, env_info)
 
-                new_tags = tuple([f"{key}:{value}" for key, value in env_info.items()])
-                current_tags = logger.experiment.tags or ()
+            # if isinstance(logger, (pl_loggers.MLFlowLogger)):
+            #     for key, value in env_info.items():
+            #         logger.experiment.set_tag(logger.run_id, key, value)
 
-                logger.experiment.tags = current_tags + new_tags
+            # elif isinstance(logger, pl_loggers.WandbLogger):
 
-            elif isinstance(logger, pl_loggers.TensorBoardLogger):
-                env_str = "\n".join([f"{key}: {value}" for key, value in env_info.items()])
-                logger.experiment.add_text("Environment Info", env_str, global_step=0)
+            #     new_tags = tuple([f"{key}:{value}" for key, value in env_info.items()])
+            #     current_tags = logger.experiment.tags or ()
 
-            else:
-                logger.log_hyperparams(env_info)
+            #     logger.experiment.tags = current_tags + new_tags
+
+            # elif isinstance(logger, pl_loggers.TensorBoardLogger):
+            #     env_str = "\n".join([f"{key}: {value}" for key, value in env_info.items()])
+            #     logger.experiment.add_text("Environment Info", env_str, global_step=0)
+
+            # else:
+            #     logger.log_hyperparams(env_info)

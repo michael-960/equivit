@@ -59,7 +59,7 @@ class LogMetrics(Callback):
                 logger.experiment.add_figure(tag=f"{stage_name} Confusion Matrix", figure=fig, global_step=trainer.current_epoch)
 
             elif isinstance(logger, pl_loggers.MLFlowLogger):
-                logger.experiment.log_figure(run_id=logger.run_id, figure=fig, artifact_file=f"{stage}_confmat_epoch_{trainer.current_epoch}.png")
+                logger.experiment.log_figure(run_id=logger.run_id, figure=fig, artifact_file=f"{stage}_confmat_epoch_{trainer.current_epoch:03d}.png")
 
             elif isinstance(logger, pl_loggers.WandbLogger):
                 try:
@@ -91,3 +91,21 @@ class LogMetrics(Callback):
     
 
 
+
+
+class LogModelSize(Callback):
+    def on_fit_start(self, trainer, pl_module: "ClassificationModel"):
+        num_params = 0
+        num_params_trainable = 0
+        for p in pl_module.parameters():
+            num_params += p.numel()
+            if p.requires_grad:
+                num_params_trainable += p.numel()
+
+        for logger in trainer.loggers:
+            logger.log_hyperparams({
+                'model/num_params': num_params,
+                'model/num_params_trainable': num_params_trainable,
+                'model/num_params_M': num_params / 1e6,
+                'model/num_params_trainable_M': num_params_trainable / 1e6
+            })

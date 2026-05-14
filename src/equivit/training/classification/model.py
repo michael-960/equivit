@@ -51,6 +51,16 @@ class ClassificationModel(LightningModule):
         self.train_confmat_calculator = ConfusionMatrixCalculator()
         self.val_confmat_calculator = ConfusionMatrixCalculator()
 
+
+        # count number of parameters
+        num_params = 0
+        num_params_trainable = 0
+        for p in self.parameters():
+            num_params += p.numel()
+            if p.requires_grad:
+                num_params_trainable += p.numel()
+
+
     def on_train_epoch_start(self):
         self.epoch_batch_count = 0
         self.epoch_total_loss = 0.
