@@ -49,7 +49,7 @@ def main(cfg: DictConfig):
         for logger in loggers:
             add_tags(logger, {"hydra_dir": run_string})
             if isinstance(logger, pl_loggers.MLFlowLogger):
-                logger.experiment.log_artifact(logger.run_id, str(hydra_dir), artifact_path="hydra")
+                logger.experiment.log_artifact(logger.run_id, str(hydra_dir))
             else:
                 raise NotImplementedError("Logging hydra metadata is currently only implemented for MLFlowLogger. Please implement for other loggers if needed.")
 
