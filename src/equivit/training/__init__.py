@@ -12,3 +12,5 @@ from .classification import *
 from .log_gradient import LogGradientNorm
 
 from .log_weight import LogParamNorm
+
+from .log_artifacts import LogArtifacts
