@@ -60,6 +60,8 @@ class ClassificationModel(LightningModule):
             if p.requires_grad:
                 num_params_trainable += p.numel()
 
+        self.val_best_loss = None
+
 
     def on_train_epoch_start(self):
         self.epoch_batch_count = 0
@@ -102,7 +104,11 @@ class ClassificationModel(LightningModule):
 
         self.val_confmat_calculator.update(y, preds)
 
+        if self.val_best_loss is None or loss.detach().item() < self.val_best_loss:
+            self.val_best_loss = loss.detach().item()
+
         self.log('val/loss', loss, prog_bar=True)
+        self.log('val/best_loss', self.val_best_loss)
         return loss
 
     def configure_optimizers(self):

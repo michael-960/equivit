@@ -100,15 +100,17 @@ def get_config(base_dim, subgroup_arg, num_heads):
 
 
 def generate(config_dir: str):
-    VARIANTS = ['tiny', 'small', 'base']
+    VARIANTS = ['extratiny', 'tiny', 'small', 'base']
 
     base_dim = {
+        'extratiny': 72,
         'tiny': 144,
         'small': 288,
         'base': 576
     }
 
     num_heads = {
+        'extratiny': 3,
         'tiny': 3,
         'small': 6,
         'base': 12

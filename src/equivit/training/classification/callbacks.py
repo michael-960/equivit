@@ -1,14 +1,21 @@
 import torch
+import numpy as np
+from PIL import Image
+from pathlib import Path
 from lightning.pytorch.callbacks import Callback
 
 from typing import List, Dict, Any, Union, TYPE_CHECKING
 
 import seaborn as sns
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
+from matplotlib.figure import Figure
+from matplotlib.backends.backend_agg import FigureCanvasAgg
+from tempfile import TemporaryDirectory
 
 from lightning.pytorch import loggers as pl_loggers
 
 from .metrics import ClassificationMetric
+
 
 if TYPE_CHECKING:
     from .model import ClassificationModel
@@ -48,25 +55,48 @@ class LogMetrics(Callback):
             confmat = pl_module.val_confmat_calculator.pop_confusion_matrix()
             stage_name = "Validation"
 
-        fig, ax = plt.subplots()
+        fig = Figure(figsize=(5, 5))
+        FigureCanvasAgg(fig)
+
+        ax = fig.subplots()
+
+        # fig, ax = plt.subplots()
         sns.heatmap(confmat, annot=True, fmt='d', cmap='Blues', ax=ax)
         ax.set_title(f"{stage_name} Confusion Matrix - Epoch {trainer.current_epoch}")
         ax.set_xlabel("Predicted Labels")
         ax.set_ylabel("GT Labels")
 
-        for logger in trainer.loggers:
-            if isinstance(logger, pl_loggers.TensorBoardLogger):
-                logger.experiment.add_figure(tag=f"{stage_name} Confusion Matrix", figure=fig, global_step=trainer.current_epoch)
+        with TemporaryDirectory() as tmpdir:
+            imgname = f"{stage}_confmat_epoch_{trainer.current_epoch:03d}"
+            path = Path(tmpdir) / f"{imgname}.png"
+            fig.savefig(path, bbox_inches='tight')
 
-            elif isinstance(logger, pl_loggers.MLFlowLogger):
-                logger.experiment.log_figure(run_id=logger.run_id, figure=fig, artifact_file=f"{stage}_confmat_epoch_{trainer.current_epoch:03d}.png")
+            for logger in trainer.loggers:
+                if isinstance(logger, pl_loggers.TensorBoardLogger):
+                    # logger.experiment.add_figure(tag=f"{stage_name} Confusion Matrix", figure=fig, global_step=trainer.current_epoch)
+                    logger.experiment.add_image(
+                        tag=imgname,
+                        img_tensor=np.asarray(Image.open(path).convert("RGB")).transpose(2,0,1), # convert to CxHxW format
+                        global_step=trainer.current_epoch
+                    )
 
-            elif isinstance(logger, pl_loggers.WandbLogger):
-                try:
-                    import wandb
-                    logger.experiment.log({f"{stage_name} Confusion Matrix": wandb.Image(fig), "epoch": trainer.current_epoch})
-                except ImportError:
-                    raise ImportError("WandbLogger requires the wandb library. Please install it with `pip install wandb`.")
+                elif isinstance(logger, pl_loggers.MLFlowLogger):
+                    # logger.experiment.log_figure(run_id=logger.run_id, figure=fig, artifact_file=f"confmats/{stage}_confmat_epoch_{trainer.current_epoch:03d}.png")
+                    logger.experiment.log_artifact(logger.run_id, str(path), artifact_path=f"confmats")
+
+                elif isinstance(logger, pl_loggers.WandbLogger):
+                    # try:
+                    #     import wandb
+                    #     logger.experiment.log({f"{stage_name} Confusion Matrix": wandb.Image(fig), "epoch": trainer.current_epoch})
+                    # except ImportError:
+                    #     raise ImportError("WandbLogger requires the wandb library. Please install it with `pip install wandb`.")
+                    logger.log_image(
+                        key=f'confmats/{imgname}',
+                        images=[str(path)],
+                        step=trainer.current_epoch
+                    )
+                else:
+                    pass
 
 
         for metric_name, metric_fn in self.metrics.items():
@@ -78,7 +108,6 @@ class LogMetrics(Callback):
 
             pl_module.log(f"{stage}/best_{metric_name}", self._best_metrics[stage][metric_name]) 
 
-        plt.close(fig)
 
 
 
