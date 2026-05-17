@@ -9,6 +9,7 @@ import warnings
 
 
 class LogArtifacts(Callback):
+    
     def __init__(self, dirpath: str):
         super().__init__()
         self.dirpath = dirpath
@@ -23,6 +24,9 @@ class LogArtifacts(Callback):
         if not path.is_dir():
             raise NotADirectoryError(f"Artifact path is not a directory: {path}")
 
+
+        num_mlflow_loggers = 0
+
         for logger in trainer.loggers:
             if isinstance(logger, MLFlowLogger):
                 logger.experiment.log_artifacts(
@@ -30,6 +34,10 @@ class LogArtifacts(Callback):
                     local_dir=str(path),
                     artifact_path=path.name,
                 )
-            else:
-                warnings.warn(f"Logger of type {type(logger)} does not support artifact logging. Skipping artifact logging for this logger.")
+                num_mlflow_loggers += 1
+
+        if num_mlflow_loggers == 0:
+            warnings.warn(
+                "No MLFlowLogger found. Artifacts were not logged. Please add an MLFlowLogger to your Trainer to log artifacts."
+            )
 

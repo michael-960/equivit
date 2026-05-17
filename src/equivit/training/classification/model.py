@@ -46,21 +46,22 @@ class ClassificationModel(LightningModule):
         self.epoch_batch_count = 0
         self.epoch_total_loss = 0.
 
-        self.save_hyperparameters()
+        self.save_hyperparameters(logger=False)
 
         self.train_confmat_calculator = ConfusionMatrixCalculator()
         self.val_confmat_calculator = ConfusionMatrixCalculator()
 
 
         # count number of parameters
-        num_params = 0
-        num_params_trainable = 0
-        for p in self.parameters():
-            num_params += p.numel()
-            if p.requires_grad:
-                num_params_trainable += p.numel()
+        # num_params = 0
+        # num_params_trainable = 0
+        # for p in self.parameters():
+        #     num_params += p.numel()
+        #     if p.requires_grad:
+        #         num_params_trainable += p.numel()
 
         self.val_best_loss = None
+
 
 
     def on_train_epoch_start(self):

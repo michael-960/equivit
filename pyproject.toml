@@ -3,7 +3,7 @@ name = "equivit"
 authors = [
     {name="Chih-Chun Wang", email="mike.wang96029@gmail.com"},
 ]
-version = "0.0.3"
+version = "0.0.4"
 description = "Build and test equivariant Vision Transformers."
 readme = "README.md"
 requires-python = ">=3.12"
