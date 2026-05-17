@@ -43,7 +43,7 @@ def get_augmentation_info(data_loader: DataLoader, split: str) -> Dict[str, obje
     num_preprocessing_steps = getattr(transform, "num_preprocessing_steps", "unknown")
 
     return {
-        f"data.{split}.augmentation.enabled": has_augmentation,
-        f"data.{split}.augmentation.num_steps": num_augmentation_steps,
-        f"data.{split}.preprocessing.num_steps": num_preprocessing_steps,
+        f"data.{split}.has_augmentation": has_augmentation,
+        f"data.{split}.num_augmentation_steps": num_augmentation_steps,
+        f"data.{split}.num_preprocessing_steps": num_preprocessing_steps,
     }

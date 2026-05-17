@@ -30,7 +30,7 @@ def generate_run_name(cfg: DictConfig) -> Tuple[str, str]:
     shared_run_id = uuid4().hex[:12]
     shared_run_id_short = shared_run_id[:4]
 
-    name_prefix = cfg.get("experiment_name", random_pet_name(words=2, separator="-"))
+    name_prefix = cfg.get("run_name", random_pet_name(words=2, separator="-"))
 
 
     run_name = f"{name_prefix}-{shared_run_id_short}"
