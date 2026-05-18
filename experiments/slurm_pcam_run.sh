@@ -44,6 +44,9 @@ args=(
     loggers.mlflow.experiment_name=pcam
 
     trainer.log_every_n_steps=50
+    trainer.max_epochs=100
+    +trainer.gradient_clip_val=1.0
+
 
     model=octic/"$subgroup"/a/base
     model.backbone.config.depth="$depth"
@@ -51,15 +54,14 @@ args=(
     +model.backbone.config.transformer_block_config.attn_drop=0.2
     +model.backbone.config.transformer_block_config.drop_path=0.08
 
-    trainer.max_epochs=100
 
     compile="$compile"
 
     optimizer.lr=0.0001
 
-    data=pcam_aug
     loss_fn._target_=torch.nn.BCEWithLogitsLoss
 
+    data=pcam_aug
     data.train_loader.batch_size=256
     data.val_loader.batch_size=256
 )
