@@ -33,7 +33,7 @@ for subgroup in C1 D1 D4; do
 
 			compile="$compile"
 
-			optimizer.lr=0.0003
+			optimizer.lr=0.0001
 
 			data=food101
 			loss_fn._target_=torch.nn.CrossEntropyLoss

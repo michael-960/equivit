@@ -56,7 +56,7 @@ args=(
 
     compile="$compile"
 
-    optimizer.lr=0.0001
+    optimizer.lr=0.00003
 
     data=food101
     loss_fn._target_=torch.nn.CrossEntropyLoss
