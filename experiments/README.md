@@ -53,19 +53,21 @@ sbatch slurm_debug.sh
 ## 5. Start training
 Now, start training on the Food101 dataset (as usual inspect the script and make necessary modifications):
 ```bash
-sbatch slurm_food101_run.sh
+sbatch slurm_pcam_run.sh
 ```
-This submits an array of 12 jobs, training 
+This submits an array of 18 jobs, training 
 $G$-equivariant ViTs of depth $d$, where
 $$
 
     G\in\{C_1, C_2, C_4, D_1, D_2, D_4\}
 $$
 $$
-d\in \{8, 2\}.
+d\in \{12, 6, 2\}.
 $$
-The Food101 dataset consists of $75750 + 25250$ food images and 101 classes.
-The image size is $512\times 512$. 
+The PCam dataset consists of $327680$ images
+extracted from histopathologic scans of lymph node sections, each with a binary label. The image size is $96\times 96$. 
+
+
 
 
 ## Notes

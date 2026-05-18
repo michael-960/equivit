@@ -18,17 +18,15 @@ for subgroup in C1 D1 D4; do
 		args=(
 			--config-dir=conf 
 			--config-name=config
-			loggers.mlflow.experiment_name=food101
+			loggers.mlflow.experiment_name=cifar100
 
 			trainer.log_every_n_steps=50
 			trainer.max_epochs=100
 			+trainer.gradient_clip_val=1.0
-			+trainer.limit_train_batches=1.0
-			+trainer.limit_val_batches=10
 
 			model=octic/"$subgroup"/a/small
 			model.backbone.config.depth="$depth"
-			model.backbone.config.tokenizer_config.patch_size=32
+			model.backbone.config.tokenizer_config.patch_size=8
 			+model.head.drop_rate=0.1
 			+model.backbone.config.transformer_block_config.attn_drop=0.1
 			+model.backbone.config.transformer_block_config.drop_path=0.05
@@ -38,7 +36,7 @@ for subgroup in C1 D1 D4; do
 
 			optimizer.lr=0.0001
 
-			data=food101
+			data=cifar100
 			loss_fn._target_=torch.nn.CrossEntropyLoss
 
 			data.train_loader.batch_size=128

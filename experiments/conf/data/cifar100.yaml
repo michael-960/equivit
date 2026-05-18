@@ -1,7 +1,7 @@
 train_loader:
   _target_: torch.utils.data.DataLoader
   dataset: 
-    _target_: torchvision.datasets.CIFAR10
+    _target_: torchvision.datasets.CIFAR100
     root: "${oc.env:EXPERIMENT_DATA_DIR}"
     train: true
 
@@ -17,16 +17,15 @@ train_loader:
             mean: [0.5, 0.5, 0.5]
             std: [0.5, 0.5, 0.5]
 
-
-  batch_size: 64
-  num_workers: 4
+  batch_size: 128
+  num_workers: 8
   shuffle: true
 
 
 val_loader:
   _target_: torch.utils.data.DataLoader
   dataset: 
-    _target_: torchvision.datasets.CIFAR10
+    _target_: torchvision.datasets.CIFAR100
     root: "${oc.env:EXPERIMENT_DATA_DIR}"
     train: false
     transform: 
@@ -41,11 +40,10 @@ val_loader:
             mean: [0.5, 0.5, 0.5]
             std: [0.5, 0.5, 0.5]
 
-
-  batch_size: 64
-  num_workers: 4
+  batch_size: 128
+  num_workers: 8
   shuffle: false
 
-num_logits: 10
+num_logits: 100
 img_size: 32
 binary: false

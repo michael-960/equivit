@@ -1,9 +1,10 @@
 train_loader:
   _target_: torch.utils.data.DataLoader
   dataset: 
-    _target_: torchvision.datasets.CIFAR10
+    _target_: torchvision.datasets.PCAM
     root: "${oc.env:EXPERIMENT_DATA_DIR}"
-    train: true
+    split: train
+    download: false
 
     transform: 
       _target_: equivit.data.DataTransform
@@ -17,18 +18,27 @@ train_loader:
             mean: [0.5, 0.5, 0.5]
             std: [0.5, 0.5, 0.5]
 
+        - role: augmentation
+          transform:
+            _target_: torchvision.transforms.ColorJitter
+            brightness: 0.2
+            contrast: 0.2
+            saturation: 0.2
+            hue: 0.1
 
-  batch_size: 64
-  num_workers: 4
+  batch_size: 128
+  num_workers: 8
   shuffle: true
 
 
 val_loader:
   _target_: torch.utils.data.DataLoader
   dataset: 
-    _target_: torchvision.datasets.CIFAR10
+    _target_: torchvision.datasets.PCAM
     root: "${oc.env:EXPERIMENT_DATA_DIR}"
-    train: false
+    split: val
+    download: false
+
     transform: 
       _target_: equivit.data.DataTransform
       steps: 
@@ -42,10 +52,10 @@ val_loader:
             std: [0.5, 0.5, 0.5]
 
 
-  batch_size: 64
-  num_workers: 4
+  batch_size: 128
+  num_workers: 8
   shuffle: false
 
-num_logits: 10
-img_size: 32
-binary: false
+binary: true
+num_logits: 1
+img_size: 96
