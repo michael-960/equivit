@@ -1,0 +1,62 @@
+train_loader:
+  _target_: torch.utils.data.DataLoader
+  dataset: 
+    _target_: torchvision.datasets.Food101
+    root: "${oc.env:EXPERIMENT_DATA_DIR}"
+    split: train
+    download: false
+
+    transform: 
+      _target_: equivit.data.DataTransform
+      steps: 
+        - role: preprocessing
+          transform:
+            _target_: torchvision.transforms.ToTensor
+        - role: preprocessing
+          transform:
+            _target_: torchvision.transforms.Normalize
+            mean: [0.5, 0.5, 0.5]
+            std: [0.5, 0.5, 0.5]
+        - role: preprocessing
+          transform:
+            _target_: torchvision.transforms.CenterCrop
+            size: 512
+        
+
+  batch_size: 128
+  num_workers: 8
+  shuffle: true
+
+
+val_loader:
+  _target_: torch.utils.data.DataLoader
+  dataset: 
+    _target_: torchvision.datasets.Food101
+    root: "${oc.env:EXPERIMENT_DATA_DIR}"
+    split: test
+    download: false
+
+    transform: 
+      _target_: equivit.data.DataTransform
+      steps: 
+        - role: preprocessing
+          transform:
+            _target_: torchvision.transforms.ToTensor
+        - role: preprocessing
+          transform:
+            _target_: torchvision.transforms.Normalize
+            mean: [0.5, 0.5, 0.5]
+            std: [0.5, 0.5, 0.5]
+        - role: preprocessing
+          transform:
+            _target_: torchvision.transforms.CenterCrop
+            size: 512
+
+
+  batch_size: 128
+  num_workers: 8
+  shuffle: false
+
+binary: false
+num_logits: 101
+img_size: 512

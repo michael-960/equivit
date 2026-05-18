@@ -1,4 +1,4 @@
-from typing import Tuple, Union
+from typing import Tuple, Union, Literal
 import torch
 
 import torch.nn as nn
@@ -26,10 +26,11 @@ class CropAndInterpolate(nn.Module, LatticeImageInterpolator):
         lattice: Lattice, 
         img_size: Union[int,tuple],
         scale: float = 1.0,
-        offset: Tuple[int,int]=(0.,0.),
+        offset: Union[Tuple[int,int], Literal['center']]='center',
     ):
         nn.Module.__init__(self)
         LatticeImageInterpolator.__init__(self, lattice=lattice, img_size=img_size, scale=scale, offset=offset)
+
 
         _I0 = torch.tensor(self.I0, dtype=torch.long)
         _I1 = torch.tensor(self.I1, dtype=torch.long)

@@ -27,7 +27,7 @@ backbone:
 
     tokenizer_config: 
       _target_: equivit.models.OcticTokenizeConfig
-      img_size: 256
+      img_size: "${oc.select:data.img_size,256}"
       patch_size: 16
       in_channels: 3
 

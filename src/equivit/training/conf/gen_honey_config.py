@@ -7,8 +7,8 @@ _target_: equivit.models.build_named_sequential
 
 preprocess:
   _target_: equivit.nn.CropAndInterpolate
-  img_size: [256, 256]
-  offset: [127.5, 127.5]
+  img_size: ["${oc.select:data.img_size,256}", "${oc.select:data.img_size,256}"]
+  offset: center
   scale: 1.0746 # same pixel density
   lattice:
     _target_: equivit.geometry.HexPatches

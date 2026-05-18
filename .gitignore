@@ -17,4 +17,7 @@ __pycache__/
 
 experiments/outputs
 experiments/mlruns
+experiments/wandb
 experiments/lightning_logs
+experiments/env.sh
+experiments/logs

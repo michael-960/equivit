@@ -5,14 +5,24 @@ train_loader:
     split: "train"
 
     transform: 
-      _target_: torchvision.transforms.Compose
-      transforms: 
-        - _target_: torchvision.transforms.ToTensor
-        - _target_: torchvision.transforms.RandomRotation
-          degrees: [-30, 30]
+      _target_: equivit.data.DataTransform
+      steps: 
+        - role: preprocessing
+          transform:
+            _target_: torchvision.transforms.ToTensor
+        - role: preprocessing
+          transform:
+            _target_: torchvision.transforms.Normalize
+            mean: [0.5, 0.5, 0.5]
+            std: [0.5, 0.5, 0.5]
+        - role: augmentation
+          transform:
+            _target_: torchvision.transforms.RandomRotation
+            degrees: [-30, 30]
 
-  batch_size: 16
-  num_workers: 4
+
+  batch_size: 128
+  num_workers: 12
   shuffle: true
 
 
@@ -23,12 +33,20 @@ val_loader:
     split: "val"
 
     transform: 
-      _target_: torchvision.transforms.Compose
-      transforms: 
-        - _target_: torchvision.transforms.ToTensor
+      _target_: equivit.data.DataTransform
+      steps: 
+        - role: preprocessing
+          transform:
+            _target_: torchvision.transforms.ToTensor
+        - role: preprocessing
+          transform:
+            _target_: torchvision.transforms.Normalize
+            mean: [0.5, 0.5, 0.5]
+            std: [0.5, 0.5, 0.5]
 
-  batch_size: 16
-  num_workers: 4
+
+  batch_size: 128
+  num_workers: 12
   shuffle: false
 
 num_logits: 38

@@ -1,0 +1,36 @@
+_target_: equivit.models.build_named_sequential
+preprocess:
+  _target_: equivit.nn.CropAndInterpolate
+  img_size: ['${oc.select:data.img_size,256}', '${oc.select:data.img_size,256}']
+  offset: center
+  scale: 1.0746
+  lattice:
+    _target_: equivit.geometry.HexPatches
+    N1: 9
+    N2: 9
+backbone:
+  _target_: equivit.models.HoneyViTBackbone
+  config:
+    _target_: equivit.models.HoneyViTBackboneConfig
+    depth: 12
+    dims:
+      A1: 18
+      A2: 18
+      B1: 18
+      B2: 18
+    subgroup: [D, 2, 0]
+    tokenizer_config:
+      _target_: equivit.models.HoneyTokenizeConfig
+      N1: 9
+      N2: 9
+      in_channels: 3
+    transformer_block_config:
+      _target_: equivit.nn.EquivariantTransformerBlockConfig
+      attn_type: coupled
+      num_heads: 3
+      homogeneous_space_copies: [72, 0, 0, 0, 0]
+      activation: gelu
+head:
+  _target_: equivit.nn.InvariantClassificationHead
+  dim: 72
+  num_logits: ${oc.select:data.num_logits,10}

@@ -1,5 +1,5 @@
 import torch
-from typing import Type, Union, Tuple, Any, overload
+from typing import Type, Union, Tuple, Any, overload, Literal
 from ..groups import Group, decompose_set_action, TRIVIAL_GROUP, GroupAction, GroupElement
 import numpy as np
 
@@ -130,10 +130,14 @@ class LatticeImageInterpolator:
         lattice: Lattice, 
         img_size: Union[int,tuple],
         scale: float = 1.0,
-        offset: Tuple[int,int]=(0.,0.),
+        offset: Union[Tuple[int,int], Literal['center']]='center',
     ):
         if type(img_size) not in [tuple, list]:
             img_size = (img_size, img_size)
+
+        if offset == 'center':
+            offset = ((img_size[0]-1)/2, (img_size[1]-1)/2)
+
 
         self.lattice = lattice
         self.scale = scale

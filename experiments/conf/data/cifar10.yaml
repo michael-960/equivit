@@ -2,14 +2,21 @@ train_loader:
   _target_: torch.utils.data.DataLoader
   dataset: 
     _target_: torchvision.datasets.CIFAR10
-    root: "~/storage/data/CIFAR10"
+    root: "${oc.env:EXPERIMENT_DATA_DIR},~/Data"
     train: true
+
     transform: 
-      _target_: torchvision.transforms.Compose
-      transforms: 
-        - _target_: torchvision.transforms.ToTensor
-        # - _target_: torchvision.transforms.Resize
-        #   size: 128
+      _target_: equivit.data.DataTransform
+      steps: 
+        - role: preprocessing
+          transform:
+            _target_: torchvision.transforms.ToTensor
+        - role: preprocessing
+          transform:
+            _target_: torchvision.transforms.Normalize
+            mean: [0.5, 0.5, 0.5]
+            std: [0.5, 0.5, 0.5]
+
 
   batch_size: 64
   num_workers: 4
@@ -20,14 +27,20 @@ val_loader:
   _target_: torch.utils.data.DataLoader
   dataset: 
     _target_: torchvision.datasets.CIFAR10
-    root: "~/storage/data/CIFAR10"
+    root: "${oc.env:EXPERIMENT_DATA_DIR},~/Data"
     train: false
     transform: 
-      _target_: torchvision.transforms.Compose
-      transforms: 
-        - _target_: torchvision.transforms.ToTensor
-        # - _target_: torchvision.transforms.Resize
-        #   size: 128
+      _target_: equivit.data.DataTransform
+      steps: 
+        - role: preprocessing
+          transform:
+            _target_: torchvision.transforms.ToTensor
+        - role: preprocessing
+          transform:
+            _target_: torchvision.transforms.Normalize
+            mean: [0.5, 0.5, 0.5]
+            std: [0.5, 0.5, 0.5]
+
 
   batch_size: 64
   num_workers: 4

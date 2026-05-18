@@ -100,6 +100,7 @@ def main(cfg: DictConfig):
                 model_cfg=cfg.model, 
                 loss_fn_cfg=cfg.loss_fn, 
                 optimizer_cfg=cfg.optimizer,
+                binary=cfg.binary,
                 compile=cfg.compile
             )
 
