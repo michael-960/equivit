@@ -51,9 +51,9 @@ sbatch slurm_debug.sh
 
 
 ## 5. Start training
-Now, start training on the Food101 dataset (as usual inspect the script and make necessary modifications):
+Now, start training on the PCAM dataset (as usual inspect the script and make necessary modifications):
 ```bash
-sbatch slurm_pcam_run.sh
+sbatch slurm_pcam.sh
 ```
 This submits an array of 18 jobs, training 
 $G$-equivariant ViTs of depth $d$, where

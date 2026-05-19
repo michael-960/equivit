@@ -1,6 +1,4 @@
-
 # be sure to source this file before running any experiments
-
 
 # maybe change this
 export EXPERIMENT_DATA_DIR="/home/$USER/Data"

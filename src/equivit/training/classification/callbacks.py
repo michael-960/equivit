@@ -115,12 +115,12 @@ class LogMetrics(Callback):
 
         for metric_name, metric_fn in self.metrics.items():
             metric_value = metric_fn(confmat)
-            pl_module.log(f"{stage}/{metric_name}", metric_value)
+            pl_module.log(f"{stage}/{metric_name}", metric_value, on_step=False, on_epoch=True)
 
             if self._best_metrics[stage][metric_name] is None or metric_value > self._best_metrics[stage][metric_name]:
                 self._best_metrics[stage][metric_name] = metric_value
 
-            pl_module.log(f"{stage}/best_{metric_name}", self._best_metrics[stage][metric_name]) 
+            pl_module.log(f"{stage}/best_{metric_name}", self._best_metrics[stage][metric_name], on_step=False, on_epoch=True) 
 
 
 

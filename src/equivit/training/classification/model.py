@@ -62,16 +62,24 @@ class ClassificationModel(LightningModule):
 
         self.val_best_loss = None
 
-
+    def on_train_start(self):
+        self.val_best_loss = None
 
     def on_train_epoch_start(self):
         self.epoch_batch_count = 0
         self.epoch_total_loss = 0.
         self.train_confmat_calculator.reset_confusion_matrix()
 
+        self.train_loss_ema_10 = None
+        self.train_loss_ema_50 = None
+
     def training_step(self, batch, batch_idx):
         x, y = batch
         logits = self.model(x) # (B, num_classes) or (B, 1) for binary
+
+        if not torch.isfinite(logits).all():
+            raise RuntimeError(f"Non-finite logits at batch {batch_idx}")
+
         if self.binary:
             loss = self.loss_fn(logits.squeeze(-1), y.to(torch.float32))
             preds = (logits.detach().squeeze(-1) > 0).to(torch.int64) # (B,)
@@ -79,23 +87,42 @@ class ClassificationModel(LightningModule):
             loss = self.loss_fn(logits, y)
             preds = torch.argmax(logits.detach(), dim=-1) # (B,)
 
-        self.epoch_batch_count += 1
-        self.epoch_total_loss += loss.detach().item()
+        if not torch.isfinite(loss):
+            raise RuntimeError(f"Non-finite loss at batch {batch_idx}")
+
 
         self.train_confmat_calculator.update(y, preds)
 
         # self.log('train_loss', loss, prog_bar=True)
-        self.log('train/avg_loss', self.epoch_total_loss / self.epoch_batch_count, prog_bar=True)
-        self.log('train/loss', loss.detach())
+        # self.log('train/avg_loss', self.epoch_total_loss / self.epoch_batch_count, prog_bar=True, on_step=True, on_epoch=False)
+
+        loss_detached = loss.detach()
+
+        if self.train_loss_ema_10 is None:
+            self.train_loss_ema_10 = loss_detached.clone()
+            self.train_loss_ema_50 = loss_detached.clone()
+        else:
+            self.train_loss_ema_10 = 0.9 * self.train_loss_ema_10 + 0.1 * loss_detached
+            self.train_loss_ema_50 = 0.98 * self.train_loss_ema_50 + 0.02 * loss_detached
+
+        
+        self.log('train/loss', loss_detached, on_step=False, on_epoch=True, batch_size=x.size(0))
+
+        self.log('train/loss_step', loss_detached, on_step=True, on_epoch=False)
+        self.log('train/loss_ema10', self.train_loss_ema_10, on_step=True, on_epoch=False, prog_bar=True)
+        self.log('train/loss_ema50', self.train_loss_ema_50, on_step=True, on_epoch=False, prog_bar=True)
 
         return loss
 
     def on_validation_epoch_start(self):
+        self.val_epoch_sample_count = 0
+        self.val_epoch_total_loss = 0.
         self.val_confmat_calculator.reset_confusion_matrix()
 
     def validation_step(self, batch, batch_idx):
         x, y = batch
         logits = self.model(x) # (B, num_classes) or (B, 1) for binary
+
         if self.binary:
             loss = self.loss_fn(logits.squeeze(-1), y.to(torch.float32))
             preds = (logits.detach().squeeze(-1) > 0).long() # (B,)
@@ -103,14 +130,23 @@ class ClassificationModel(LightningModule):
             loss = self.loss_fn(logits, y)
             preds = torch.argmax(logits.detach(), dim=-1) # (B,)
 
+        batch_size = x.size(0)
+
+        self.val_epoch_sample_count += batch_size
+        self.val_epoch_total_loss += loss.detach().item() * batch_size
+
         self.val_confmat_calculator.update(y, preds)
 
-        if self.val_best_loss is None or loss.detach().item() < self.val_best_loss:
-            self.val_best_loss = loss.detach().item()
-
-        self.log('val/loss', loss, prog_bar=True)
-        self.log('val/best_loss', self.val_best_loss)
         return loss
+
+    def on_validation_epoch_end(self):
+        avg_loss = self.val_epoch_total_loss / self.val_epoch_sample_count
+        self.log('val/loss', avg_loss, on_step=False, on_epoch=True)
+
+        if self.val_best_loss is None or avg_loss < self.val_best_loss:
+            self.val_best_loss = avg_loss
+
+        self.log('val/best_loss', self.val_best_loss, on_step=False, on_epoch=True)
 
     def configure_optimizers(self):
         optimizer = self.optimizer_factory(self.parameters())
