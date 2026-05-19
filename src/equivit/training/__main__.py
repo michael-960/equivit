@@ -16,6 +16,7 @@ def main():
 
     # Route to the unmodified Hydra scripts
     if command == "train-classifier":
+        torch.set_float32_matmul_precision('high')
         classification.train.main()
     elif command == "gen-model-configs":
         assert len(sys.argv) == 2, "Please provide a config directory as an argument."
