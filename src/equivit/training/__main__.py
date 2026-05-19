@@ -1,3 +1,4 @@
+import torch
 import sys
 from . import classification
 
