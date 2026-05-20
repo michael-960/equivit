@@ -21,3 +21,4 @@ experiments/wandb
 experiments/lightning_logs
 experiments/env.sh
 experiments/logs
+experiments/scripts
