@@ -7,3 +7,9 @@ from .vanilla import ViTBackbone, ViTBackboneConfig, Tokenizer, TokenizerConfig
 
 
 from .factories import build_named_sequential
+
+
+from .octic_factories import build_octic_regular
+
+
+from .honey_factories import build_honey_regular

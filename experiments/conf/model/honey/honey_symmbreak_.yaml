@@ -1,4 +1,4 @@
-_target_: equivit.models.build_named_sequential
+_target_: equivit.models.build_honey_regular
 
 preprocess:
   _target_: equivit.nn.CropAndInterpolate

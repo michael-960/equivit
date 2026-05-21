@@ -1,0 +1,14 @@
+_target_: equivit.models.build_honey_regular
+img_size: 256
+N1: 9
+N2: 9
+in_channels: 3
+depth: 8
+base_dim: 3
+mlp_ratio: 4 
+subgroup: [D, 6, 0]
+attn_type: coupled
+num_heads: 3
+activation: gelu
+num_logits: "${oc.select:data.num_logits,10}"
+
