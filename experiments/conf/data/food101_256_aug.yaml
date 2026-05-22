@@ -13,6 +13,26 @@ train_loader:
           transform:
             _target_: torchvision.transforms.CenterCrop
             size: 512
+        - role: augmentation
+          transform:
+            _target_: torchvision.transforms.ColorJitter
+            brightness: 0.25
+            contrast: 0.25
+            saturation: 0.15
+            hue: 0.03
+        - role: augmentation
+          transform:
+            _target_: torchvision.transforms.RandomAutocontrast
+            p: 0.2
+        - role: augmentation
+          transform:
+            _target_: torchvision.transforms.RandomEqualize
+            p: 0.1
+        - role: augmentation
+          transform:
+            _target_: torchvision.transforms.RandomAdjustSharpness
+            sharpness_factor: 1.5
+            p: 0.2
         - role: preprocessing
           transform:
             _target_: torchvision.transforms.ToTensor

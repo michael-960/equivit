@@ -1,5 +1,5 @@
 _target_: equivit.models.build_honey_regular
-img_size: 256
+img_size: ${oc.select:data.img_size,256}
 N1: 9
 N2: 9
 in_channels: 3
