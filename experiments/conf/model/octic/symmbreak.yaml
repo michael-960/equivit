@@ -1,0 +1,12 @@
+_target_: build_octic_regular_symmetry_breaking
+img_size: 256
+patch_size: 16
+in_channels: 3
+depths: [2,2,2,2]
+base_dim: 32
+mlp_ratio: 4
+subgroups: [['D', 4, 0], ['C', 4], [2], [1]]
+attn_type: coupled,
+num_heads: 4,
+activation: gelu,
+num_logits: "${oc.select:data.num_logits,10}"

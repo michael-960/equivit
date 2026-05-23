@@ -39,6 +39,10 @@ class OcticTokenizeConfig:
         if self.subgroup is MISSING:
             self.subgroup = ('D', 4, 0)
 
+    def __post_init__(self):
+        if (self.dims is not MISSING) and (self.subgroup is not MISSING):
+            self.dims = eqnn.resolve_dims(D4.subgroup(*self.subgroup).source, self.dims)
+
 
 @dataclass
 class OcticViTBackboneConfig:

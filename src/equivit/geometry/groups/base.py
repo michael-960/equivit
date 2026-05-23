@@ -108,17 +108,36 @@ class Group:
         """
         raise NotImplementedError("This method should be implemented by subclasses to return a list of subgroups of the group, up to conjugacy.")
 
+    def regular_action(self) -> 'GroupAction':
+        """
+        Returns the regular action of the group on itself by left multiplication.
+        """
+        from .cyclic import TRIVIAL_GROUP
+
+        return self.homogeneous_space_action(
+            GroupHomomorphism(
+            source=TRIVIAL_GROUP,
+            target=self,
+            mapping={TRIVIAL_GROUP.identity(): self.identity()}
+            )
+        )
+
     def homogeneous_space_action(self, *subgroup_args) -> 'GroupAction':
         """
         Given some arguments specifying a subgroup, return the homogeneous space action of the group on the left cosets of the subgroup.
         The subgroup can be recovered as the stabilizer of the identity coset.
 
-        Note: current implementation only works for finite groups, since we need to enumerate the cosets to compute the action.        """
+        Note: current implementation only works for finite groups, since we need to enumerate the cosets to compute the action.        
+        """
         assert self.is_finite(), "homogeneous_space_action is only implemented for finite groups."
-
         from .action import GroupAction 
 
-        inclusion = self.subgroup(*subgroup_args)
+        if len(subgroup_args) == 1 and isinstance(subgroup_args[0], GroupHomomorphism):
+                inclusion = subgroup_args[0]
+                assert inclusion.target is self, "The target of the subgroup inclusion homomorphism must be the group itself."
+                assert inclusion.is_injective(), "The subgroup inclusion homomorphism must be injective."
+        else:
+            inclusion = self.subgroup(*subgroup_args)
 
         # compute left cosets of the subgroup
         cosets = self.left_cosets(inclusion)

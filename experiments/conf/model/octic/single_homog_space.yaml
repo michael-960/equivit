@@ -1,0 +1,17 @@
+_target_: equivit.models.build_octic_single_homogeneous_space
+img_size: ${oc.select:data.img_size,256}
+patch_size: 16
+in_channels: 3
+depth: 8
+base_dim: 3
+mlp_ratio: 4
+
+subgroup: [D, 4, 0]
+homogeneous_space_index: 0
+
+attn_type: coupled
+num_heads: 3
+activation: gelu
+num_logits: "${oc.select:data.num_logits,10}"
+
+

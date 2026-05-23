@@ -81,10 +81,13 @@ callbacks:
     monitor_gpu:
       _target_: equivit.training.LogCudaMemory
 
+
+experiment_name: test-exp
+
 loggers:
   mlflow:
     _target_: lightning.pytorch.loggers.MLFlowLogger
-    experiment_name: "test-exp"
+    experiment_name: ${experiment_name}
     tracking_uri: "${oc.env:MLFLOW_TRACKING_URI}"
     log_model: false
 
@@ -92,5 +95,9 @@ loggers:
     _target_: lightning.pytorch.loggers.WandbLogger
     entity: mike96029
     project: equivit-test
+    group: ${experiment_name}
     log_model: false
+            
+
+
 
