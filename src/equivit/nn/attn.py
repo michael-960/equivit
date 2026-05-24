@@ -155,7 +155,8 @@ class EquivariantCoupledAttention(nn.Module):
                         q.movedim(-3,-2),  # (*, H, L, Q)
                         k.movedim(-3,-2), 
                         v.movedim(-3,-2),  
-                        dropout_p=self.attn_drop).movedim(-2, -3) # (*, L, H, Q)
+                        dropout_p=self.attn_drop if self.training else 0.
+            ).movedim(-2, -3) # (*, L, H, Q)
 
         y = torch.split(y, self.split_dims, dim=-1) # list of (*, L, H, Ci/H * Di)
 
@@ -269,6 +270,8 @@ class EquivariantIrrepwiseAttention(nn.Module):
 
         y = [None for _ in range(len(x))]
 
+        _attn_drop = self.attn_drop if self.training else 0.
+
         for i in range(len(x)):
             _shape = x[i].shape # (*, L, Ci, di) complex64 or float32 depending on the irrep type
 
@@ -300,7 +303,7 @@ class EquivariantIrrepwiseAttention(nn.Module):
                             q_i.movedim(-3,-2),  # (*, num_heads_i, L, Ci//num_heads*di) (real) or (*, num_heads_i, L, Ci//num_heads*di*2) (complex)
                             k_i.movedim(-3,-2), 
                             v_i.movedim(-3,-2), 
-                            dropout_p=self.attn_drop
+                            dropout_p=_attn_drop
                         ).movedim(-2, -3)
             if self.is_complex[i]:
                 # (*, L, num_heads_i, Ci//num_heads_i * di*2) float32
