@@ -24,8 +24,9 @@ debug_inds = rng.choice(800*38, 640) # for debug purposes
 
 _patternnet_indices = {
     'train': train_inds,
-    'test': val_inds,
+    'test': val_inds, # oops, this was a typo, but let's keep it for consistency.
     'val': test_inds,
+    'val+test': val_inds + test_inds,
     'debug': debug_inds
 }
 
@@ -37,7 +38,7 @@ class PatternNet:
     """
     def __init__(
             self, 
-            split: Literal['train', 'val', 'test', 'debug'], 
+            split: Literal['train', 'val', 'test', 'debug', 'val+test'], 
             transform=None,
             n_samples=None,
             sample_cut_ratio=None,

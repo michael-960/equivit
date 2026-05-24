@@ -6,6 +6,7 @@ import warnings
 from lightning.pytorch import loggers as pl_loggers
 
 
+INTENTIONAL_FAIL_EXIT_CODE = 42
 
 def add_tags(logger, tags: Dict[str, Any]):
     """

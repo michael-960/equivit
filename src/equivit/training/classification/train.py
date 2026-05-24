@@ -1,3 +1,4 @@
+import sys
 from typing import Tuple
 from pathlib import Path
 import hydra
@@ -19,8 +20,9 @@ from ..log_env import EnvironmentLoggerCallback
 
 from .callbacks import LogModelSize
 
-from .._core import add_tags, flatten_config
+from .._core import add_tags, flatten_config, INTENTIONAL_FAIL_EXIT_CODE
 from .._petnames import random_pet_name
+from ..stop_big_model import ParameterBudgetExceededError
 
 
 def generate_run_name(cfg: DictConfig) -> Tuple[str, str]:
@@ -145,7 +147,11 @@ def main(cfg: DictConfig):
 
     trainer: L.Trainer = instantiate(cfg.trainer, callbacks=callbacks, logger=loggers)
 
-    trainer.fit(module, datamodule=data_module)
+    try:
+        trainer.fit(module, datamodule=data_module)
+    except ParameterBudgetExceededError as e:
+        print(f"Training stopped: {e}")
+        sys.exit(INTENTIONAL_FAIL_EXIT_CODE)
 
 
 if __name__ == "__main__":

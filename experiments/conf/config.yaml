@@ -81,6 +81,11 @@ callbacks:
     monitor_gpu:
       _target_: equivit.training.LogCudaMemory
 
+    limit_params:
+      _target_: equivit.training.LimitParameterBudget
+      max_params: 100_000_000
+      trainable_only: true
+
 
 experiment_name: test-exp
 

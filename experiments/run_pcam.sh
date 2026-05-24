@@ -3,7 +3,6 @@ set -e
 
 source ./env.sh
 
-
 # for subgroup in C1 C2 C4 D1 D2 D4; do
 for subgroup in C1 D1 D4; do
 
@@ -16,7 +15,7 @@ for subgroup in C1 D1 D4; do
 	for depth in 8 2; do
 
 		args=(
-			--config-dir=conf 
+			--config-dir=conf
 			--config-name=config
 			loggers.mlflow.experiment_name=pcam
 
