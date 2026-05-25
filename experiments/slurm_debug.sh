@@ -2,10 +2,9 @@
 #SBATCH --job-name=debug
 #SBATCH --output=logs/%A_%a.out
 #SBATCH --error=logs/%A_%a.err
-#SBATCH --time=01:00:00
-#SBATCH --mem=16G
-#SBATCH --partition=gpu
-#SBATCH --gres=gpu:1
+#SBATCH --time=00:15:00
+#SBATCH --partition=gpu_a100
+#SBATCH --gpus=1
 #SBATCH --array=0-5
 
 

@@ -1,0 +1,115 @@
+defaults:
+  - data: patternnet_aug
+  - model: octic/D4/a/small
+  - _self_
+
+img_size: 256
+compile: true
+
+binary: "${oc.select:data.binary,false}"
+
+batch_transforms:
+  _target_: torchvision.transforms.v2.RandomChoice
+  transforms:
+    - _target_: torchvision.transforms.v2.CutMix
+      num_classes: ${num_logits}
+      alpha: 1.0
+    - _target_: torchvision.transforms.v2.MixUp
+      num_classes: ${num_logits}
+      alpha: 0.2
+
+optimizer:
+  _target_: torch.optim.AdamW
+  _partial_: true
+  lr: 0.003
+  weight_decay: 0.05
+  betas: [0.9, 0.999]
+
+scheduler:
+  _target_: torch.optim.lr_scheduler.OneCycleLR
+  _partial_: true
+  max_lr: ${optimizer.lr}
+  pct_start: 0.1
+  anneal_strategy: "cos"
+
+loss_fn:
+   _target_: torch.nn.CrossEntropyLoss
+
+trainer:
+    _target_: lightning.Trainer
+    max_epochs: 60
+    accelerator: auto
+    devices: auto
+    enable_progress_bar: true
+    log_every_n_steps: 50
+    
+
+callbacks:
+    model_checkpoint:
+      _target_: lightning.pytorch.callbacks.ModelCheckpoint
+      dirpath:  "${hydra:runtime.output_dir}/checkpoints"
+      filename: "best-{epoch:03d}-{val/best_loss:.4f}"
+      monitor: "val/loss"
+      mode: min
+      save_top_k: 2
+      save_last: true
+      auto_insert_metric_name: false
+
+    model_checkpoint_acc:
+      _target_: lightning.pytorch.callbacks.ModelCheckpoint
+      dirpath:  "${hydra:runtime.output_dir}/checkpoints"
+      filename: "best-acc-{epoch:03d}-{val/best_accuracy:.4f}"
+      monitor: "val/best_accuracy"
+      mode: max
+      save_top_k: 2
+      save_last: true
+      auto_insert_metric_name: false
+
+    log_checkpoints:
+      _target_: equivit.training.LogArtifacts
+      dirpath: "${hydra:runtime.output_dir}/checkpoints"
+
+    log_metrics:
+      _target_: equivit.training.classification.callbacks.LogMetrics
+      metrics:
+         accuracy: 
+            _target_: equivit.training.classification.metrics.Accuracy
+         precision: 
+            _target_: equivit.training.classification.metrics.Precision
+         recall: 
+            _target_: equivit.training.classification.metrics.Recall
+
+    grad_norm:
+      _target_: equivit.training.LogGradientNorm
+      norm_type: 2.0
+      layer_types: ['equivit.nn.EquivariantLinear']
+
+    param_norm:
+      _target_: equivit.training.LogParamNorm
+      norm_type: 2.0
+      layer_types: ['equivit.nn.EquivariantLinear']
+
+    early_stop:
+      _target_: lightning.pytorch.callbacks.EarlyStopping
+      monitor: "val/accuracy"
+      mode: max
+      patience: 20
+      check_finite: true
+
+
+    monitor_gpu:
+      _target_: equivit.training.LogCudaMemory
+
+loggers:
+  mlflow:
+    _target_: lightning.pytorch.loggers.MLFlowLogger
+    experiment_name: "test-exp"
+    tracking_uri: "${oc.env:MLFLOW_TRACKING_URI}"
+    log_model: false
+
+  wandb:
+    _target_: lightning.pytorch.loggers.WandbLogger
+    entity: mike96029
+    project: equivit-test
+    log_model: false
+
