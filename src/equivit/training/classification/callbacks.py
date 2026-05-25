@@ -146,9 +146,13 @@ class LogModelSize(Callback):
         num_params = 0
         num_params_trainable = 0
         for p in pl_module.parameters():
-            num_params += p.numel()
+            if torch.is_complex(p):
+                _n = 2*p.numel()
+            else:
+                _n = p.numel()
+            num_params += _n
             if p.requires_grad:
-                num_params_trainable += p.numel()
+                num_params_trainable += _n 
 
         for logger in trainer.loggers:
             # do we need to guard this with rank_zero_only? 
@@ -159,8 +163,6 @@ class LogModelSize(Callback):
                 'model.num_params_M': num_params / 1e6,
                 'model.num_params_trainable_M': num_params_trainable / 1e6
             })
-
-
 
 
 

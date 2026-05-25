@@ -108,7 +108,7 @@ class EquivariantLayerNorm(nn.Module):
     We will index it as :math:`(x_i)_{kl}`, where :math:`k`
     indexes the channels and :math:`l` indexes the dimensions of
     the irrep. 
-    We compute the means and standard deviation as follows:
+    We compute the mean and standard deviation as follows:
     
     .. math::
         \begin{aligned}

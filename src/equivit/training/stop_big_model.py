@@ -1,3 +1,4 @@
+import torch
 from lightning.pytorch.callbacks import Callback
 
 class ParameterBudgetExceededError(RuntimeError):
@@ -19,7 +20,14 @@ class LimitParameterBudget(Callback):
             p for p in pl_module.parameters()
             if (p.requires_grad or not self.trainable_only)
         ]
-        num_params = sum(p.numel() for p in params)
+        num_params = 0
+        for p in params:
+            if torch.is_complex(p):
+                num_params += 2*p.numel()
+            else:
+                num_params += p.numel()
+
+        # num_params = sum(p.numel() for p in params)
     
         if num_params > self.max_params:
             msg = (
