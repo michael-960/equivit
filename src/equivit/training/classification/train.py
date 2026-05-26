@@ -24,6 +24,14 @@ from .._core import add_tags, flatten_config, INTENTIONAL_FAIL_EXIT_CODE
 from .._petnames import random_pet_name
 from ..stop_big_model import ParameterBudgetExceededError
 
+OmegaConf.register_new_resolver(
+    "uuid",
+    lambda: uuid4().hex[:8],
+    use_cache=True,
+    replace=True,
+)
+
+
 
 def generate_run_name(cfg: DictConfig) -> Tuple[str, str]:
     """
@@ -155,4 +163,5 @@ def main(cfg: DictConfig):
 
 
 if __name__ == "__main__":
+
     main()
