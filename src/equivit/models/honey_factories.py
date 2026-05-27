@@ -1,4 +1,4 @@
-from typing import Tuple
+from typing import Optional, Tuple
 import torch.nn as nn
 from typing import Literal, Union
 
@@ -25,6 +25,9 @@ def build_honey_regular(
     activation: str,
     num_logits: int,
 
+    base_homogs: Optional[list]=None,
+
+    activation_kw: dict=None,
     trivial_rep_attn_bias: bool=True,
     attn_drop: float=0,
     trivial_rep_proj_bias: bool=True,
@@ -50,7 +53,12 @@ def build_honey_regular(
             else:
                 dims[name] = base_dim
 
-    homog_copies = [round(base_dim*mlp_ratio)] + [0] * (len(subgroup_.all_homogeneous_space_actions()) - 1)
+    if base_homogs is None:
+        homog_copies = [round(base_dim*mlp_ratio)] + [0] * (len(subgroup_.all_homogeneous_space_actions()) - 1)
+    else:
+        _num_homogs = len(subgroup_.all_homogeneous_space_actions())
+        assert len(base_homogs) == _num_homogs, f"Length of base_homog_copies ({base_homogs}) must match the number of homogeneous space actions ({_num_homogs}) of the subgroup."
+        homog_copies = [round(base_dim*mlp_ratio)*ncopies for ncopies in base_homogs]
 
     dim = sum(dims.values())
 
@@ -78,7 +86,7 @@ def build_honey_regular(
                     num_heads=num_heads,
                     homogeneous_space_copies=homog_copies,
                     activation=activation,
-
+                    activation_kw=activation_kw,
                     trivial_rep_attn_bias=trivial_rep_attn_bias,
                     attn_drop=attn_drop,
                     trivial_rep_proj_bias=trivial_rep_proj_bias,
