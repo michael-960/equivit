@@ -34,3 +34,5 @@ from . import vanilla
 
 
 from ._core import resolve_dims
+
+from .patch_embed_transpose import EquivariantPatchEmbedTranspose
