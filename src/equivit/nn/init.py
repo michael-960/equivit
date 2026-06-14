@@ -83,3 +83,36 @@ def complex_kaiming_uniform_(x: torch.Tensor, fan_in: float, gain=math.sqrt(2)):
  
     radius = gain * math.sqrt(2 / fan_in) if fan_in > 0 else 0
     return complex_uniform_disk_(x, radius=radius)
+
+def complex_trunc_normal_(x: torch.Tensor, std: float = 0.02, bound: float = 0.04):
+    assert x.dtype.is_complex
+    if x.dtype == torch.complex64:
+        real_dtype = torch.float32
+    elif x.dtype == torch.complex128:
+        real_dtype = torch.float64
+    else:
+        raise ValueError("Unsupported complex dtype: {}".format(x.dtype))
+    with torch.no_grad():
+        real_std = std / math.sqrt(2.)
+        real_part = torch.empty(x.shape, device=x.device, dtype=real_dtype).normal_(0, real_std)
+        imag_part = torch.empty(x.shape, device=x.device, dtype=real_dtype).normal_(0, real_std)
+
+        cand = torch.complex(real_part, imag_part)
+
+        # Rejection sampling: redraw elements where the magnitude exceeds the bound
+        while True:
+            out_of_bounds = torch.abs(cand) > bound
+
+            if not out_of_bounds.any():
+                break
+
+            num_redraws = out_of_bounds.sum().item()
+
+            new_real = torch.empty(num_redraws, device=x.device, dtype=real_dtype).normal_(0, real_std)
+            new_imag = torch.empty(num_redraws, device=x.device, dtype=real_dtype).normal_(0, real_std)
+
+            cand[out_of_bounds] = torch.complex(new_real, new_imag)
+
+        x.copy_(cand)
+    return x
+

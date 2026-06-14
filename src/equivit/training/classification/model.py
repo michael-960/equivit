@@ -26,7 +26,8 @@ class ClassificationModel(LightningModule):
         compile: bool = False,
         binary: bool = False,
         scheduler_cfg=None,
-        extra_cfg=None
+        extra_cfg=None,
+        batch_transforms_cfg=None,
     ):
         super().__init__()
 
@@ -41,6 +42,7 @@ class ClassificationModel(LightningModule):
         self.optimizer_factory = instantiate(optimizer_cfg)
         self.scheduler_factory = instantiate(scheduler_cfg) if scheduler_cfg is not None else None
 
+        self.batch_transforms = instantiate(batch_transforms_cfg) if batch_transforms_cfg is not None else None
         self.extra_cfg = extra_cfg # not used now 
 
         self.epoch_batch_count = 0
@@ -75,6 +77,8 @@ class ClassificationModel(LightningModule):
 
     def training_step(self, batch, batch_idx):
         x, y = batch
+        if not self.binary and self.batch_transforms is not None:
+            x, y = self.batch_transforms(x, y)
         logits = self.model(x) # (B, num_classes) or (B, 1) for binary
 
         if not torch.isfinite(logits).all():
@@ -91,7 +95,13 @@ class ClassificationModel(LightningModule):
             raise RuntimeError(f"Non-finite loss at batch {batch_idx}")
 
 
-        self.train_confmat_calculator.update(y, preds)
+        if y.ndim == 2: 
+            # If Mixup/Cutmix turned y into probabilities, grab the majority class
+            y_hard = torch.argmax(y, dim=-1)
+        else:
+            y_hard = y
+
+        self.train_confmat_calculator.update(y_hard, preds)
 
         # self.log('train_loss', loss, prog_bar=True)
         # self.log('train/avg_loss', self.epoch_total_loss / self.epoch_batch_count, prog_bar=True, on_step=True, on_epoch=False)
@@ -150,8 +160,20 @@ class ClassificationModel(LightningModule):
 
     def configure_optimizers(self):
         optimizer = self.optimizer_factory(self.parameters())
+
         if self.scheduler_factory is not None:
-            scheduler = self.scheduler_factory(optimizer)
-            return {'optimizer': optimizer, 'lr_scheduler': scheduler}
+            total_steps = self.trainer.estimated_stepping_batches
+            scheduler = self.scheduler_factory(
+                optimizer=optimizer,
+                total_steps=total_steps
+            )
+            return {
+                'optimizer': optimizer, 
+                'lr_scheduler': {
+                    'scheduler': scheduler,
+                    'interval': 'step', 
+                    'frequency': 1,
+                }
+            }
 
         return optimizer

@@ -7,7 +7,7 @@ from ..geometry import Group, IrrepType
 
 from .utils import assert_all_not_quaternionic
 
-from .init import complex_uniform_disk_, kaiming_uniform_, complex_kaiming_uniform_
+from .init import complex_uniform_disk_, kaiming_uniform_, complex_kaiming_uniform_, complex_trunc_normal_
 
 from ._core import resolve_dims
 
@@ -92,9 +92,11 @@ class EquivariantLinear(nn.Module):
                 if self.weights[i].numel() > 0:
                     if self.weights[i].dtype.is_complex:
                         # if complex, draw the weights from the unit disk
-                        complex_kaiming_uniform_(self.weights[i], fan_in=self.dims_in[i], gain=gain)
+                        # complex_kaiming_uniform_(self.weights[i], fan_in=self.dims_in[i], gain=gain)
+                        complex_trunc_normal_(self.weights[i], std=0.02, bound=0.04)
                     else:
-                        kaiming_uniform_(self.weights[i], fan_in=self.dims_in[i], gain=gain)
+                        # kaiming_uniform_(self.weights[i], fan_in=self.dims_in[i], gain=gain)
+                        nn.init.trunc_normal_(self.weights[i], std=0.02)
 
             if self.bias is not None:
                 if self.bias.numel() > 0:
