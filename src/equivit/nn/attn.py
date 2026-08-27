@@ -6,7 +6,7 @@ from typing import Tuple, List
 
 from collections.abc import Sequence
 
-from ..geometry import Group, IrrepType
+from ..geometry import Group, IrrepType, GroupAction
 from .linear import EquivariantLinear
 from .drop import ListDropout
 
@@ -321,3 +321,48 @@ class EquivariantIrrepwiseAttention(nn.Module):
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}(group={self.group}, dims={self.dims}, num_heads={self.num_heads}, trivial_rep_attn_bias={self.trivial_rep_attn_bias}, attn_drop={self.attn_drop}, trivial_rep_proj_bias={self.trivial_rep_proj_bias}, proj_drop={self.proj_drop_p})"
+
+
+
+class EquivariantAttention(nn.Module):
+    r"""
+    Equivariant multi-head self-attention in reduced parameter space.
+
+    Let :math:`G` be a finite group and :math:`B` a finite :math:`G`-set. 
+    Let :math:`V` be an orthogonal :math:`G`-representation.
+
+
+    Suppose :math:`M, R: B \rightarrow \mathrm{End}(V)` are two maps such that
+
+    .. math::
+        M_{gb} = g M_b g^{-1}, \quad R_{gb} = g R_b g^{-1}
+
+    for all :math:`g \in G` and :math:`b \in B`.
+
+    This module implements the following multi-head self-attention:
+
+    .. math::
+        \mathrm{attn}(x)_i = \sum_{b\in B} 
+            \frac{\sum_{j=1}^L e^{\braket{x_i, M_b x_j}} R_b x_j}
+            {\sum_{j=1}^L e^{\braket{x_i, M_b x_j}}},
+
+    where :math:`x = (x_1, \dotsb, x_L) \in \mathbb{R}^L\otimes V` is the input token sequence.
+    """
+    def __init__(self,
+        action: GroupAction,
+    ):
+        super().__init__()
+        self.reset_parameters()
+        raise NotImplementedError("EquivariantAttention is not implemented yet.")
+
+    def reset_parameters(self):
+        ...
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Args:
+            x: list of tensors, each of shape :math:`(*, L, C_i, d_i)`, where :math:`d_i` is the (complex) dimension of the :math:`i`-th irrep
+        Returns:
+            list of tensors, each of shape :math:`(*, L, C_i, d_i)`
+        """
+        ...
