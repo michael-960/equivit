@@ -38,6 +38,7 @@ Attention layers
 
     nn/attn_irrepwise
     nn/attn_coupled
+    nn/attn
 
 Normalization layers
 ---------------------
