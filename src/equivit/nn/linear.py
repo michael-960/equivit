@@ -92,11 +92,11 @@ class EquivariantLinear(nn.Module):
                 if self.weights[i].numel() > 0:
                     if self.weights[i].dtype.is_complex:
                         # if complex, draw the weights from the unit disk
-                        # complex_kaiming_uniform_(self.weights[i], fan_in=self.dims_in[i], gain=gain)
-                        complex_trunc_normal_(self.weights[i], std=0.02, bound=0.04)
+                        complex_kaiming_uniform_(self.weights[i], fan_in=self.dims_in[i], gain=gain)
+                        # complex_trunc_normal_(self.weights[i], std=0.02, bound=0.04)
                     else:
-                        # kaiming_uniform_(self.weights[i], fan_in=self.dims_in[i], gain=gain)
-                        nn.init.trunc_normal_(self.weights[i], std=0.02)
+                        kaiming_uniform_(self.weights[i], fan_in=self.dims_in[i], gain=gain)
+                        # nn.init.trunc_normal_(self.weights[i], std=0.02)
 
             if self.bias is not None:
                 if self.bias.numel() > 0:
