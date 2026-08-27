@@ -6,3 +6,10 @@ SymmetryRestriction
    :members:
 
 
+SymmetryCorestriction
+===================
+
+
+.. autoclass:: equivit.nn.SymmetryCorestriction
+   :members:
+

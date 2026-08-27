@@ -19,7 +19,8 @@ from .norm import EquivariantLayerNorm, ListLayerScale, ListAffine
 from .invariant import Invariantization
 from .invariant_classhead import InvariantClassificationHead
 
-from .restriction import SymmetryRestriction
+
+from .restriction import SymmetryRestriction, SymmetryCorestriction
 
 from .utils import assert_all_not_quaternionic, act_on_tensors, random_irrep_tensors , induced_action_on_tensors
 
@@ -36,3 +37,4 @@ from . import vanilla
 from ._core import resolve_dims
 
 from .patch_embed_transpose import EquivariantPatchEmbedTranspose
+
