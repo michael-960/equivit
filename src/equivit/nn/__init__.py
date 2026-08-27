@@ -9,7 +9,7 @@ from .mlp import EquivariantMLP
 # let's keep this private
 # from .lattice_irrep_handler import GroupActionIrrepProjectionCalculator, InducedRepresentationInvariantSubspaceCalculator
 
-from .attn import EquivariantIrrepwiseAttention, EquivariantCoupledAttention
+from .attn import EquivariantIrrepwiseAttention, EquivariantCoupledAttention, EquivariantAttention
 from .transformer_block import EquivariantTransformerBlock, EquivariantTransformerBlockConfig
 
 

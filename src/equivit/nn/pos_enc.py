@@ -84,6 +84,8 @@ class EquivariantPositionalEncoding(nn.Module):
             x: list of tensors, each of shape :math:`(*, L, C_i, d_i)`
         Returns:
             list of tensors, each of shape :math:`(*, L, C_i, d_i)` with positional encodings added
+
+        Note: the input list will be modified in place
         """
         # (L, Ci, di) for each irrep
         # each tensor can be real or complex depending on the irrep type
