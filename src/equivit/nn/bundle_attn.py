@@ -482,6 +482,16 @@ class BundleAttention(nn.Module):
         self.dims_V = self.values[0].dims_V if self.values else None
 
     @property
+    def attn_widths(self) -> List[int]:
+        orbit_widths = [dim for _, dim in self.attn_layouts]
+        return [[d] * len(self.head_set.blocks[i]) for i, d in enumerate(orbit_widths)]
+
+    @property
+    def value_widths(self) -> List[int]:
+        orbit_widths = [dim for _, dim in self.value_layouts]
+        return [[d] * len(self.head_set.blocks[i]) for i, d in enumerate(orbit_widths)]
+
+    @property
     def num_heads(self) -> int:
         return len(self.head_set)
 
